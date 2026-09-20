@@ -1,0 +1,48 @@
+spring:
+  application:
+    name: workout-tracker
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/workout}
+    username: ${POSTGRES_USER:workout}
+    password: ${POSTGRES_PASSWORD:workout}
+    hikari:
+      maximum-pool-size: 10
+      connection-timeout: 10000
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate.jdbc.time_zone: UTC
+      hibernate.default_batch_fetch_size: 50
+  flyway:
+    enabled: true
+  task:
+    scheduling:
+      pool:
+        size: 2
+  lifecycle:
+    timeout-per-shutdown-phase: 35s
+server:
+  shutdown: graceful
+  error:
+    include-message: never
+    include-stacktrace: never
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      show-details: never
+logging:
+  structured:
+    format:
+      console: ecs
+app:
+  api-key: ${INTERNAL_API_KEY:}
+  telegram:
+    enabled: ${TELEGRAM_ENABLED:false}
+    token: ${TELEGRAM_BOT_TOKEN:}
+    base-url: https://api.telegram.org
