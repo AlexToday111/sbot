@@ -1,0 +1,17 @@
+package dev.workout.telegram.handler;
+
+public enum Flow {
+  HOME,
+  WORKOUT_NAME,
+  WORKOUT_DESCRIPTION,
+  WORKOUT_EDIT,
+  EXERCISE_SEARCH,
+  EXERCISE_PICK,
+  CUSTOM_NAME,
+  CUSTOM_TYPE,
+  TARGETS,
+  WEIGHT,
+  REPS,
+  METRICS,
+  TIMEZONE
+}
