@@ -1,0 +1,1319 @@
+{
+    "openapi":  "3.1.0",
+    "info":  {
+                 "title":  "Workout Tracker internal API",
+                 "description":  "Trusted service API. X-Api-Key authenticates the calling service; X-Telegram-User-Id selects the user. Never expose this impersonation-capable API key to client applications. Weights are kg, distance km, duration seconds.",
+                 "version":  "0.1.0"
+             },
+    "servers":  [
+                    {
+                        "url":  "http://127.0.0.1:8080",
+                        "description":  "Generated server url"
+                    }
+                ],
+    "security":  [
+                     {
+                         "apiKey":  [
+
+                                    ],
+                         "telegramIdentity":  [
+
+                                              ]
+                     }
+                 ],
+    "paths":  {
+                  "/api/workouts/{id}":  {
+                                             "get":  {
+                                                         "tags":  [
+                                                                      "workout-controller"
+                                                                  ],
+                                                         "operationId":  "get",
+                                                         "parameters":  [
+                                                                            {
+                                                                                "name":  "id",
+                                                                                "in":  "path",
+                                                                                "required":  true,
+                                                                                "schema":  {
+                                                                                               "type":  "integer",
+                                                                                               "format":  "int64"
+                                                                                           }
+                                                                            }
+                                                                        ],
+                                                         "responses":  {
+                                                                           "200":  {
+                                                                                       "description":  "OK",
+                                                                                       "content":  {
+                                                                                                       "*/*":  {
+                                                                                                                   "schema":  {
+                                                                                                                                  "$ref":  "#/components/schemas/TemplateView"
+                                                                                                                              }
+                                                                                                               }
+                                                                                                   }
+                                                                                   }
+                                                                       }
+                                                     },
+                                             "put":  {
+                                                         "tags":  [
+                                                                      "workout-controller"
+                                                                  ],
+                                                         "operationId":  "edit",
+                                                         "parameters":  [
+                                                                            {
+                                                                                "name":  "id",
+                                                                                "in":  "path",
+                                                                                "required":  true,
+                                                                                "schema":  {
+                                                                                               "type":  "integer",
+                                                                                               "format":  "int64"
+                                                                                           }
+                                                                            }
+                                                                        ],
+                                                         "requestBody":  {
+                                                                             "content":  {
+                                                                                             "application/json":  {
+                                                                                                                      "schema":  {
+                                                                                                                                     "$ref":  "#/components/schemas/TemplateInput"
+                                                                                                                                 }
+                                                                                                                  }
+                                                                                         },
+                                                                             "required":  true
+                                                                         },
+                                                         "responses":  {
+                                                                           "200":  {
+                                                                                       "description":  "OK",
+                                                                                       "content":  {
+                                                                                                       "*/*":  {
+                                                                                                                   "schema":  {
+                                                                                                                                  "$ref":  "#/components/schemas/TemplateView"
+                                                                                                                              }
+                                                                                                               }
+                                                                                                   }
+                                                                                   }
+                                                                       }
+                                                     },
+                                             "delete":  {
+                                                            "tags":  [
+                                                                         "workout-controller"
+                                                                     ],
+                                                            "operationId":  "delete",
+                                                            "parameters":  [
+                                                                               {
+                                                                                   "name":  "id",
+                                                                                   "in":  "path",
+                                                                                   "required":  true,
+                                                                                   "schema":  {
+                                                                                                  "type":  "integer",
+                                                                                                  "format":  "int64"
+                                                                                              }
+                                                                               }
+                                                                           ],
+                                                            "responses":  {
+                                                                              "200":  {
+                                                                                          "description":  "OK"
+                                                                                      }
+                                                                          }
+                                                        }
+                                         },
+                  "/api/workouts":  {
+                                        "get":  {
+                                                    "tags":  [
+                                                                 "workout-controller"
+                                                             ],
+                                                    "operationId":  "list",
+                                                    "parameters":  [
+                                                                       {
+                                                                           "name":  "page",
+                                                                           "in":  "query",
+                                                                           "required":  false,
+                                                                           "schema":  {
+                                                                                          "type":  "integer",
+                                                                                          "format":  "int32",
+                                                                                          "default":  0
+                                                                                      }
+                                                                       }
+                                                                   ],
+                                                    "responses":  {
+                                                                      "200":  {
+                                                                                  "description":  "OK",
+                                                                                  "content":  {
+                                                                                                  "*/*":  {
+                                                                                                              "schema":  {
+                                                                                                                             "type":  "array",
+                                                                                                                             "items":  {
+                                                                                                                                           "$ref":  "#/components/schemas/TemplateView"
+                                                                                                                                       }
+                                                                                                                         }
+                                                                                                          }
+                                                                                              }
+                                                                              }
+                                                                  }
+                                                },
+                                        "post":  {
+                                                     "tags":  [
+                                                                  "workout-controller"
+                                                              ],
+                                                     "operationId":  "create",
+                                                     "requestBody":  {
+                                                                         "content":  {
+                                                                                         "application/json":  {
+                                                                                                                  "schema":  {
+                                                                                                                                 "$ref":  "#/components/schemas/TemplateInput"
+                                                                                                                             }
+                                                                                                              }
+                                                                                     },
+                                                                         "required":  true
+                                                                     },
+                                                     "responses":  {
+                                                                       "200":  {
+                                                                                   "description":  "OK",
+                                                                                   "content":  {
+                                                                                                   "*/*":  {
+                                                                                                               "schema":  {
+                                                                                                                              "$ref":  "#/components/schemas/TemplateView"
+                                                                                                                          }
+                                                                                                           }
+                                                                                               }
+                                                                               }
+                                                                   }
+                                                 }
+                                    },
+                  "/api/sessions":  {
+                                        "post":  {
+                                                     "tags":  [
+                                                                  "session-controller"
+                                                              ],
+                                                     "operationId":  "start",
+                                                     "parameters":  [
+                                                                        {
+                                                                            "name":  "Idempotency-Key",
+                                                                            "in":  "header",
+                                                                            "required":  true,
+                                                                            "schema":  {
+                                                                                           "type":  "string"
+                                                                                       }
+                                                                        }
+                                                                    ],
+                                                     "requestBody":  {
+                                                                         "content":  {
+                                                                                         "application/json":  {
+                                                                                                                  "schema":  {
+                                                                                                                                 "$ref":  "#/components/schemas/Start"
+                                                                                                                             }
+                                                                                                              }
+                                                                                     },
+                                                                         "required":  true
+                                                                     },
+                                                     "responses":  {
+                                                                       "200":  {
+                                                                                   "description":  "OK",
+                                                                                   "content":  {
+                                                                                                   "*/*":  {
+                                                                                                               "schema":  {
+                                                                                                                              "$ref":  "#/components/schemas/SessionView"
+                                                                                                                          }
+                                                                                                           }
+                                                                                               }
+                                                                               }
+                                                                   }
+                                                 }
+                                    },
+                  "/api/sessions/{id}/sets":  {
+                                                  "post":  {
+                                                               "tags":  [
+                                                                            "session-controller"
+                                                                        ],
+                                                               "operationId":  "add",
+                                                               "parameters":  [
+                                                                                  {
+                                                                                      "name":  "id",
+                                                                                      "in":  "path",
+                                                                                      "required":  true,
+                                                                                      "schema":  {
+                                                                                                     "type":  "integer",
+                                                                                                     "format":  "int64"
+                                                                                                 }
+                                                                                  },
+                                                                                  {
+                                                                                      "name":  "Idempotency-Key",
+                                                                                      "in":  "header",
+                                                                                      "required":  true,
+                                                                                      "schema":  {
+                                                                                                     "type":  "string"
+                                                                                                 }
+                                                                                  }
+                                                                              ],
+                                                               "requestBody":  {
+                                                                                   "content":  {
+                                                                                                   "application/json":  {
+                                                                                                                            "schema":  {
+                                                                                                                                           "$ref":  "#/components/schemas/SetInput"
+                                                                                                                                       }
+                                                                                                                        }
+                                                                                               },
+                                                                                   "required":  true
+                                                                               },
+                                                               "responses":  {
+                                                                                 "200":  {
+                                                                                             "description":  "OK",
+                                                                                             "content":  {
+                                                                                                             "*/*":  {
+                                                                                                                         "schema":  {
+                                                                                                                                        "$ref":  "#/components/schemas/SessionView"
+                                                                                                                                    }
+                                                                                                                     }
+                                                                                                         }
+                                                                                         }
+                                                                             }
+                                                           }
+                                              },
+                  "/api/sessions/{id}/repeat":  {
+                                                    "post":  {
+                                                                 "tags":  [
+                                                                              "session-controller"
+                                                                          ],
+                                                                 "operationId":  "repeat",
+                                                                 "parameters":  [
+                                                                                    {
+                                                                                        "name":  "id",
+                                                                                        "in":  "path",
+                                                                                        "required":  true,
+                                                                                        "schema":  {
+                                                                                                       "type":  "integer",
+                                                                                                       "format":  "int64"
+                                                                                                   }
+                                                                                    },
+                                                                                    {
+                                                                                        "name":  "Idempotency-Key",
+                                                                                        "in":  "header",
+                                                                                        "required":  true,
+                                                                                        "schema":  {
+                                                                                                       "type":  "string"
+                                                                                                   }
+                                                                                    }
+                                                                                ],
+                                                                 "responses":  {
+                                                                                   "200":  {
+                                                                                               "description":  "OK",
+                                                                                               "content":  {
+                                                                                                               "*/*":  {
+                                                                                                                           "schema":  {
+                                                                                                                                          "$ref":  "#/components/schemas/SessionView"
+                                                                                                                                      }
+                                                                                                                       }
+                                                                                                           }
+                                                                                           }
+                                                                               }
+                                                             }
+                                                },
+                  "/api/sessions/{id}/finish":  {
+                                                    "post":  {
+                                                                 "tags":  [
+                                                                              "session-controller"
+                                                                          ],
+                                                                 "operationId":  "finish",
+                                                                 "parameters":  [
+                                                                                    {
+                                                                                        "name":  "id",
+                                                                                        "in":  "path",
+                                                                                        "required":  true,
+                                                                                        "schema":  {
+                                                                                                       "type":  "integer",
+                                                                                                       "format":  "int64"
+                                                                                                   }
+                                                                                    }
+                                                                                ],
+                                                                 "responses":  {
+                                                                                   "200":  {
+                                                                                               "description":  "OK",
+                                                                                               "content":  {
+                                                                                                               "*/*":  {
+                                                                                                                           "schema":  {
+                                                                                                                                          "$ref":  "#/components/schemas/SessionView"
+                                                                                                                                      }
+                                                                                                                       }
+                                                                                                           }
+                                                                                           }
+                                                                               }
+                                                             }
+                                                },
+                  "/api/sessions/{id}/cancel":  {
+                                                    "post":  {
+                                                                 "tags":  [
+                                                                              "session-controller"
+                                                                          ],
+                                                                 "operationId":  "cancel",
+                                                                 "parameters":  [
+                                                                                    {
+                                                                                        "name":  "id",
+                                                                                        "in":  "path",
+                                                                                        "required":  true,
+                                                                                        "schema":  {
+                                                                                                       "type":  "integer",
+                                                                                                       "format":  "int64"
+                                                                                                   }
+                                                                                    }
+                                                                                ],
+                                                                 "responses":  {
+                                                                                   "200":  {
+                                                                                               "description":  "OK",
+                                                                                               "content":  {
+                                                                                                               "*/*":  {
+                                                                                                                           "schema":  {
+                                                                                                                                          "$ref":  "#/components/schemas/SessionView"
+                                                                                                                                      }
+                                                                                                                       }
+                                                                                                           }
+                                                                                           }
+                                                                               }
+                                                             }
+                                                },
+                  "/api/me":  {
+                                  "get":  {
+                                              "tags":  [
+                                                           "user-controller"
+                                                       ],
+                                              "operationId":  "me",
+                                              "responses":  {
+                                                                "200":  {
+                                                                            "description":  "OK",
+                                                                            "content":  {
+                                                                                            "*/*":  {
+                                                                                                        "schema":  {
+                                                                                                                       "$ref":  "#/components/schemas/Profile"
+                                                                                                                   }
+                                                                                                    }
+                                                                                        }
+                                                                        }
+                                                            }
+                                          },
+                                  "post":  {
+                                               "tags":  [
+                                                            "user-controller"
+                                                        ],
+                                               "operationId":  "register",
+                                               "requestBody":  {
+                                                                   "content":  {
+                                                                                   "application/json":  {
+                                                                                                            "schema":  {
+                                                                                                                           "$ref":  "#/components/schemas/Registration"
+                                                                                                                       }
+                                                                                                        }
+                                                                               },
+                                                                   "required":  true
+                                                               },
+                                               "responses":  {
+                                                                 "200":  {
+                                                                             "description":  "OK",
+                                                                             "content":  {
+                                                                                             "*/*":  {
+                                                                                                         "schema":  {
+                                                                                                                        "$ref":  "#/components/schemas/Profile"
+                                                                                                                    }
+                                                                                                     }
+                                                                                         }
+                                                                         }
+                                                             }
+                                           },
+                                  "patch":  {
+                                                "tags":  [
+                                                             "user-controller"
+                                                         ],
+                                                "operationId":  "settings",
+                                                "requestBody":  {
+                                                                    "content":  {
+                                                                                    "application/json":  {
+                                                                                                             "schema":  {
+                                                                                                                            "$ref":  "#/components/schemas/Settings"
+                                                                                                                        }
+                                                                                                         }
+                                                                                },
+                                                                    "required":  true
+                                                                },
+                                                "responses":  {
+                                                                  "200":  {
+                                                                              "description":  "OK",
+                                                                              "content":  {
+                                                                                              "*/*":  {
+                                                                                                          "schema":  {
+                                                                                                                         "$ref":  "#/components/schemas/Profile"
+                                                                                                                     }
+                                                                                                      }
+                                                                                          }
+                                                                          }
+                                                              }
+                                            }
+                              },
+                  "/api/exercises":  {
+                                         "get":  {
+                                                     "tags":  [
+                                                                  "exercise-controller"
+                                                              ],
+                                                     "operationId":  "list_1",
+                                                     "parameters":  [
+                                                                        {
+                                                                            "name":  "q",
+                                                                            "in":  "query",
+                                                                            "required":  false,
+                                                                            "schema":  {
+                                                                                           "type":  "string",
+                                                                                           "default":  ""
+                                                                                       }
+                                                                        },
+                                                                        {
+                                                                            "name":  "page",
+                                                                            "in":  "query",
+                                                                            "required":  false,
+                                                                            "schema":  {
+                                                                                           "type":  "integer",
+                                                                                           "format":  "int32",
+                                                                                           "default":  0
+                                                                                       }
+                                                                        }
+                                                                    ],
+                                                     "responses":  {
+                                                                       "200":  {
+                                                                                   "description":  "OK",
+                                                                                   "content":  {
+                                                                                                   "*/*":  {
+                                                                                                               "schema":  {
+                                                                                                                              "type":  "array",
+                                                                                                                              "items":  {
+                                                                                                                                            "$ref":  "#/components/schemas/ExerciseView"
+                                                                                                                                        }
+                                                                                                                          }
+                                                                                                           }
+                                                                                               }
+                                                                               }
+                                                                   }
+                                                 },
+                                         "post":  {
+                                                      "tags":  [
+                                                                   "exercise-controller"
+                                                               ],
+                                                      "operationId":  "create_1",
+                                                      "requestBody":  {
+                                                                          "content":  {
+                                                                                          "application/json":  {
+                                                                                                                   "schema":  {
+                                                                                                                                  "$ref":  "#/components/schemas/CreateExercise"
+                                                                                                                              }
+                                                                                                               }
+                                                                                      },
+                                                                          "required":  true
+                                                                      },
+                                                      "responses":  {
+                                                                        "200":  {
+                                                                                    "description":  "OK",
+                                                                                    "content":  {
+                                                                                                    "*/*":  {
+                                                                                                                "schema":  {
+                                                                                                                               "$ref":  "#/components/schemas/ExerciseView"
+                                                                                                                           }
+                                                                                                            }
+                                                                                                }
+                                                                                }
+                                                                    }
+                                                  }
+                                     },
+                  "/api/sessions/{id}/position":  {
+                                                      "patch":  {
+                                                                    "tags":  [
+                                                                                 "session-controller"
+                                                                             ],
+                                                                    "operationId":  "position",
+                                                                    "parameters":  [
+                                                                                       {
+                                                                                           "name":  "id",
+                                                                                           "in":  "path",
+                                                                                           "required":  true,
+                                                                                           "schema":  {
+                                                                                                          "type":  "integer",
+                                                                                                          "format":  "int64"
+                                                                                                      }
+                                                                                       }
+                                                                                   ],
+                                                                    "requestBody":  {
+                                                                                        "content":  {
+                                                                                                        "application/json":  {
+                                                                                                                                 "schema":  {
+                                                                                                                                                "$ref":  "#/components/schemas/Position"
+                                                                                                                                            }
+                                                                                                                             }
+                                                                                                    },
+                                                                                        "required":  true
+                                                                                    },
+                                                                    "responses":  {
+                                                                                      "200":  {
+                                                                                                  "description":  "OK",
+                                                                                                  "content":  {
+                                                                                                                  "*/*":  {
+                                                                                                                              "schema":  {
+                                                                                                                                             "$ref":  "#/components/schemas/SessionView"
+                                                                                                                                         }
+                                                                                                                          }
+                                                                                                              }
+                                                                                              }
+                                                                                  }
+                                                                }
+                                                  },
+                  "/api/sessions/{id}":  {
+                                             "get":  {
+                                                         "tags":  [
+                                                                      "session-controller"
+                                                                  ],
+                                                         "operationId":  "get_1",
+                                                         "parameters":  [
+                                                                            {
+                                                                                "name":  "id",
+                                                                                "in":  "path",
+                                                                                "required":  true,
+                                                                                "schema":  {
+                                                                                               "type":  "integer",
+                                                                                               "format":  "int64"
+                                                                                           }
+                                                                            }
+                                                                        ],
+                                                         "responses":  {
+                                                                           "200":  {
+                                                                                       "description":  "OK",
+                                                                                       "content":  {
+                                                                                                       "*/*":  {
+                                                                                                                   "schema":  {
+                                                                                                                                  "$ref":  "#/components/schemas/SessionView"
+                                                                                                                              }
+                                                                                                               }
+                                                                                                   }
+                                                                                   }
+                                                                       }
+                                                     }
+                                         },
+                  "/api/sessions/active":  {
+                                               "get":  {
+                                                           "tags":  [
+                                                                        "session-controller"
+                                                                    ],
+                                                           "operationId":  "active",
+                                                           "responses":  {
+                                                                             "200":  {
+                                                                                         "description":  "OK",
+                                                                                         "content":  {
+                                                                                                         "*/*":  {
+                                                                                                                     "schema":  {
+                                                                                                                                    "$ref":  "#/components/schemas/SessionView"
+                                                                                                                                }
+                                                                                                                 }
+                                                                                                     }
+                                                                                     }
+                                                                         }
+                                                       }
+                                           },
+                  "/api/history":  {
+                                       "get":  {
+                                                   "tags":  [
+                                                                "report-controller"
+                                                            ],
+                                                   "operationId":  "history",
+                                                   "parameters":  [
+                                                                      {
+                                                                          "name":  "month",
+                                                                          "in":  "query",
+                                                                          "required":  false,
+                                                                          "schema":  {
+                                                                                         "type":  "string"
+                                                                                     }
+                                                                      },
+                                                                      {
+                                                                          "name":  "page",
+                                                                          "in":  "query",
+                                                                          "required":  false,
+                                                                          "schema":  {
+                                                                                         "type":  "integer",
+                                                                                         "format":  "int32",
+                                                                                         "default":  0
+                                                                                     }
+                                                                      }
+                                                                  ],
+                                                   "responses":  {
+                                                                     "200":  {
+                                                                                 "description":  "OK",
+                                                                                 "content":  {
+                                                                                                 "*/*":  {
+                                                                                                             "schema":  {
+                                                                                                                            "type":  "array",
+                                                                                                                            "items":  {
+                                                                                                                                          "$ref":  "#/components/schemas/SessionView"
+                                                                                                                                      }
+                                                                                                                        }
+                                                                                                         }
+                                                                                             }
+                                                                             }
+                                                                 }
+                                               }
+                                   },
+                  "/api/exercises/{id}/progress":  {
+                                                       "get":  {
+                                                                   "tags":  [
+                                                                                "report-controller"
+                                                                            ],
+                                                                   "operationId":  "progress",
+                                                                   "parameters":  [
+                                                                                      {
+                                                                                          "name":  "id",
+                                                                                          "in":  "path",
+                                                                                          "required":  true,
+                                                                                          "schema":  {
+                                                                                                         "type":  "integer",
+                                                                                                         "format":  "int64"
+                                                                                                     }
+                                                                                      },
+                                                                                      {
+                                                                                          "name":  "period",
+                                                                                          "in":  "query",
+                                                                                          "required":  false,
+                                                                                          "schema":  {
+                                                                                                         "type":  "string",
+                                                                                                         "default":  "quarter"
+                                                                                                     }
+                                                                                      }
+                                                                                  ],
+                                                                   "responses":  {
+                                                                                     "200":  {
+                                                                                                 "description":  "OK",
+                                                                                                 "content":  {
+                                                                                                                 "*/*":  {
+                                                                                                                             "schema":  {
+                                                                                                                                            "$ref":  "#/components/schemas/Progress"
+                                                                                                                                        }
+                                                                                                                         }
+                                                                                                             }
+                                                                                             }
+                                                                                 }
+                                                               }
+                                                   },
+                  "/api/exercises/{id}/history":  {
+                                                      "get":  {
+                                                                  "tags":  [
+                                                                               "report-controller"
+                                                                           ],
+                                                                  "operationId":  "exerciseHistory",
+                                                                  "parameters":  [
+                                                                                     {
+                                                                                         "name":  "id",
+                                                                                         "in":  "path",
+                                                                                         "required":  true,
+                                                                                         "schema":  {
+                                                                                                        "type":  "integer",
+                                                                                                        "format":  "int64"
+                                                                                                    }
+                                                                                     },
+                                                                                     {
+                                                                                         "name":  "page",
+                                                                                         "in":  "query",
+                                                                                         "required":  false,
+                                                                                         "schema":  {
+                                                                                                        "type":  "integer",
+                                                                                                        "format":  "int32",
+                                                                                                        "default":  0
+                                                                                                    }
+                                                                                     }
+                                                                                 ],
+                                                                  "responses":  {
+                                                                                    "200":  {
+                                                                                                "description":  "OK",
+                                                                                                "content":  {
+                                                                                                                "*/*":  {
+                                                                                                                            "schema":  {
+                                                                                                                                           "type":  "array",
+                                                                                                                                           "items":  {
+                                                                                                                                                         "$ref":  "#/components/schemas/SessionView"
+                                                                                                                                                     }
+                                                                                                                                       }
+                                                                                                                        }
+                                                                                                            }
+                                                                                            }
+                                                                                }
+                                                              }
+                                                  },
+                  "/api/analytics/{period}":  {
+                                                  "get":  {
+                                                              "tags":  [
+                                                                           "report-controller"
+                                                                       ],
+                                                              "operationId":  "report",
+                                                              "parameters":  [
+                                                                                 {
+                                                                                     "name":  "period",
+                                                                                     "in":  "path",
+                                                                                     "required":  true,
+                                                                                     "schema":  {
+                                                                                                    "type":  "string"
+                                                                                                }
+                                                                                 }
+                                                                             ],
+                                                              "responses":  {
+                                                                                "200":  {
+                                                                                            "description":  "OK",
+                                                                                            "content":  {
+                                                                                                            "*/*":  {
+                                                                                                                        "schema":  {
+                                                                                                                                       "$ref":  "#/components/schemas/Report"
+                                                                                                                                   }
+                                                                                                                    }
+                                                                                                        }
+                                                                                        }
+                                                                            }
+                                                          }
+                                              },
+                  "/api/sessions/{id}/sets/{setId}":  {
+                                                          "delete":  {
+                                                                         "tags":  [
+                                                                                      "session-controller"
+                                                                                  ],
+                                                                         "operationId":  "undo",
+                                                                         "parameters":  [
+                                                                                            {
+                                                                                                "name":  "id",
+                                                                                                "in":  "path",
+                                                                                                "required":  true,
+                                                                                                "schema":  {
+                                                                                                               "type":  "integer",
+                                                                                                               "format":  "int64"
+                                                                                                           }
+                                                                                            },
+                                                                                            {
+                                                                                                "name":  "setId",
+                                                                                                "in":  "path",
+                                                                                                "required":  true,
+                                                                                                "schema":  {
+                                                                                                               "type":  "integer",
+                                                                                                               "format":  "int64"
+                                                                                                           }
+                                                                                            }
+                                                                                        ],
+                                                                         "responses":  {
+                                                                                           "200":  {
+                                                                                                       "description":  "OK",
+                                                                                                       "content":  {
+                                                                                                                       "*/*":  {
+                                                                                                                                   "schema":  {
+                                                                                                                                                  "$ref":  "#/components/schemas/SessionView"
+                                                                                                                                              }
+                                                                                                                               }
+                                                                                                                   }
+                                                                                                   }
+                                                                                       }
+                                                                     }
+                                                      }
+              },
+    "components":  {
+                       "schemas":  {
+                                       "Target":  {
+                                                      "type":  "object",
+                                                      "properties":  {
+                                                                         "exerciseId":  {
+                                                                                            "type":  "integer",
+                                                                                            "format":  "int64"
+                                                                                        },
+                                                                         "sets":  {
+                                                                                      "type":  "integer",
+                                                                                      "format":  "int32"
+                                                                                  },
+                                                                         "reps":  {
+                                                                                      "type":  "integer",
+                                                                                      "format":  "int32"
+                                                                                  },
+                                                                         "weight":  {
+                                                                                        "type":  "number"
+                                                                                    },
+                                                                         "restSeconds":  {
+                                                                                             "type":  "integer",
+                                                                                             "format":  "int32"
+                                                                                         }
+                                                                     }
+                                                  },
+                                       "TemplateInput":  {
+                                                             "type":  "object",
+                                                             "properties":  {
+                                                                                "name":  {
+                                                                                             "type":  "string"
+                                                                                         },
+                                                                                "description":  {
+                                                                                                    "type":  "string"
+                                                                                                },
+                                                                                "exercises":  {
+                                                                                                  "type":  "array",
+                                                                                                  "items":  {
+                                                                                                                "$ref":  "#/components/schemas/Target"
+                                                                                                            }
+                                                                                              }
+                                                                            }
+                                                         },
+                                       "TemplateItem":  {
+                                                            "type":  "object",
+                                                            "properties":  {
+                                                                               "exerciseId":  {
+                                                                                                  "type":  "integer",
+                                                                                                  "format":  "int64"
+                                                                                              },
+                                                                               "name":  {
+                                                                                            "type":  "string"
+                                                                                        },
+                                                                               "metricType":  {
+                                                                                                  "type":  "string",
+                                                                                                  "enum":  [
+                                                                                                               "STRENGTH",
+                                                                                                               "BODYWEIGHT",
+                                                                                                               "CARDIO",
+                                                                                                               "TIMED"
+                                                                                                           ]
+                                                                                              },
+                                                                               "position":  {
+                                                                                                "type":  "integer",
+                                                                                                "format":  "int32"
+                                                                                            },
+                                                                               "targetSets":  {
+                                                                                                  "type":  "integer",
+                                                                                                  "format":  "int32"
+                                                                                              },
+                                                                               "targetReps":  {
+                                                                                                  "type":  "integer",
+                                                                                                  "format":  "int32"
+                                                                                              },
+                                                                               "targetWeight":  {
+                                                                                                    "type":  "number"
+                                                                                                },
+                                                                               "restSeconds":  {
+                                                                                                   "type":  "integer",
+                                                                                                   "format":  "int32"
+                                                                                               }
+                                                                           }
+                                                        },
+                                       "TemplateView":  {
+                                                            "type":  "object",
+                                                            "properties":  {
+                                                                               "id":  {
+                                                                                          "type":  "integer",
+                                                                                          "format":  "int64"
+                                                                                      },
+                                                                               "name":  {
+                                                                                            "type":  "string"
+                                                                                        },
+                                                                               "description":  {
+                                                                                                   "type":  "string"
+                                                                                               },
+                                                                               "exercises":  {
+                                                                                                 "type":  "array",
+                                                                                                 "items":  {
+                                                                                                               "$ref":  "#/components/schemas/TemplateItem"
+                                                                                                           }
+                                                                                             }
+                                                                           }
+                                                        },
+                                       "Start":  {
+                                                     "type":  "object",
+                                                     "properties":  {
+                                                                        "templateId":  {
+                                                                                           "type":  "integer",
+                                                                                           "format":  "int64"
+                                                                                       }
+                                                                    }
+                                                 },
+                                       "ExerciseView":  {
+                                                            "type":  "object",
+                                                            "properties":  {
+                                                                               "id":  {
+                                                                                          "type":  "integer",
+                                                                                          "format":  "int64"
+                                                                                      },
+                                                                               "exerciseId":  {
+                                                                                                  "type":  "integer",
+                                                                                                  "format":  "int64"
+                                                                                              },
+                                                                               "name":  {
+                                                                                            "type":  "string"
+                                                                                        },
+                                                                               "metricType":  {
+                                                                                                  "type":  "string",
+                                                                                                  "enum":  [
+                                                                                                               "STRENGTH",
+                                                                                                               "BODYWEIGHT",
+                                                                                                               "CARDIO",
+                                                                                                               "TIMED"
+                                                                                                           ]
+                                                                                              },
+                                                                               "position":  {
+                                                                                                "type":  "integer",
+                                                                                                "format":  "int32"
+                                                                                            },
+                                                                               "targetSets":  {
+                                                                                                  "type":  "integer",
+                                                                                                  "format":  "int32"
+                                                                                              },
+                                                                               "targetReps":  {
+                                                                                                  "type":  "integer",
+                                                                                                  "format":  "int32"
+                                                                                              },
+                                                                               "targetWeight":  {
+                                                                                                    "type":  "number"
+                                                                                                },
+                                                                               "restSeconds":  {
+                                                                                                   "type":  "integer",
+                                                                                                   "format":  "int32"
+                                                                                               },
+                                                                               "sets":  {
+                                                                                            "type":  "array",
+                                                                                            "items":  {
+                                                                                                          "$ref":  "#/components/schemas/SetView"
+                                                                                                      }
+                                                                                        }
+                                                                           }
+                                                        },
+                                       "SessionView":  {
+                                                           "type":  "object",
+                                                           "properties":  {
+                                                                              "id":  {
+                                                                                         "type":  "integer",
+                                                                                         "format":  "int64"
+                                                                                     },
+                                                                              "templateId":  {
+                                                                                                 "type":  "integer",
+                                                                                                 "format":  "int64"
+                                                                                             },
+                                                                              "name":  {
+                                                                                           "type":  "string"
+                                                                                       },
+                                                                              "status":  {
+                                                                                             "type":  "string"
+                                                                                         },
+                                                                              "startedAt":  {
+                                                                                                "type":  "string",
+                                                                                                "format":  "date-time"
+                                                                                            },
+                                                                              "finishedAt":  {
+                                                                                                 "type":  "string",
+                                                                                                 "format":  "date-time"
+                                                                                             },
+                                                                              "currentPosition":  {
+                                                                                                      "type":  "integer",
+                                                                                                      "format":  "int32"
+                                                                                                  },
+                                                                              "exercises":  {
+                                                                                                "type":  "array",
+                                                                                                "items":  {
+                                                                                                              "$ref":  "#/components/schemas/ExerciseView"
+                                                                                                          }
+                                                                                            },
+                                                                              "summary":  {
+                                                                                              "$ref":  "#/components/schemas/Summary"
+                                                                                          }
+                                                                          }
+                                                       },
+                                       "SetView":  {
+                                                       "type":  "object",
+                                                       "properties":  {
+                                                                          "id":  {
+                                                                                     "type":  "integer",
+                                                                                     "format":  "int64"
+                                                                                 },
+                                                                          "number":  {
+                                                                                         "type":  "integer",
+                                                                                         "format":  "int32"
+                                                                                     },
+                                                                          "weight":  {
+                                                                                         "type":  "number"
+                                                                                     },
+                                                                          "repetitions":  {
+                                                                                              "type":  "integer",
+                                                                                              "format":  "int32"
+                                                                                          },
+                                                                          "durationSeconds":  {
+                                                                                                  "type":  "integer",
+                                                                                                  "format":  "int32"
+                                                                                              },
+                                                                          "distance":  {
+                                                                                           "type":  "number"
+                                                                                       },
+                                                                          "rpe":  {
+                                                                                      "type":  "number"
+                                                                                  },
+                                                                          "notes":  {
+                                                                                        "type":  "string"
+                                                                                    }
+                                                                      }
+                                                   },
+                                       "Summary":  {
+                                                       "type":  "object",
+                                                       "properties":  {
+                                                                          "durationSeconds":  {
+                                                                                                  "type":  "integer",
+                                                                                                  "format":  "int64"
+                                                                                              },
+                                                                          "exercises":  {
+                                                                                            "type":  "integer",
+                                                                                            "format":  "int32"
+                                                                                        },
+                                                                          "sets":  {
+                                                                                       "type":  "integer",
+                                                                                       "format":  "int32"
+                                                                                   },
+                                                                          "repetitions":  {
+                                                                                              "type":  "integer",
+                                                                                              "format":  "int64"
+                                                                                          },
+                                                                          "volume":  {
+                                                                                         "type":  "number"
+                                                                                     }
+                                                                      }
+                                                   },
+                                       "SetInput":  {
+                                                        "type":  "object",
+                                                        "properties":  {
+                                                                           "sessionExerciseId":  {
+                                                                                                     "type":  "integer",
+                                                                                                     "format":  "int64"
+                                                                                                 },
+                                                                           "weight":  {
+                                                                                          "type":  "number"
+                                                                                      },
+                                                                           "repetitions":  {
+                                                                                               "type":  "integer",
+                                                                                               "format":  "int32"
+                                                                                           },
+                                                                           "durationSeconds":  {
+                                                                                                   "type":  "integer",
+                                                                                                   "format":  "int32"
+                                                                                               },
+                                                                           "distance":  {
+                                                                                            "type":  "number"
+                                                                                        },
+                                                                           "rpe":  {
+                                                                                       "type":  "number"
+                                                                                   },
+                                                                           "notes":  {
+                                                                                         "type":  "string"
+                                                                                     }
+                                                                       }
+                                                    },
+                                       "Registration":  {
+                                                            "type":  "object",
+                                                            "properties":  {
+                                                                               "username":  {
+                                                                                                "type":  "string"
+                                                                                            },
+                                                                               "firstName":  {
+                                                                                                 "type":  "string"
+                                                                                             }
+                                                                           }
+                                                        },
+                                       "Profile":  {
+                                                       "type":  "object",
+                                                       "properties":  {
+                                                                          "id":  {
+                                                                                     "type":  "integer",
+                                                                                     "format":  "int64"
+                                                                                 },
+                                                                          "telegramUserId":  {
+                                                                                                 "type":  "integer",
+                                                                                                 "format":  "int64"
+                                                                                             },
+                                                                          "firstName":  {
+                                                                                            "type":  "string"
+                                                                                        },
+                                                                          "timezone":  {
+                                                                                           "type":  "string"
+                                                                                       },
+                                                                          "language":  {
+                                                                                           "type":  "string"
+                                                                                       }
+                                                                      }
+                                                   },
+                                       "CreateExercise":  {
+                                                              "type":  "object",
+                                                              "properties":  {
+                                                                                 "name":  {
+                                                                                              "type":  "string"
+                                                                                          },
+                                                                                 "metricType":  {
+                                                                                                    "type":  "string",
+                                                                                                    "enum":  [
+                                                                                                                 "STRENGTH",
+                                                                                                                 "BODYWEIGHT",
+                                                                                                                 "CARDIO",
+                                                                                                                 "TIMED"
+                                                                                                             ]
+                                                                                                }
+                                                                             }
+                                                          },
+                                       "Position":  {
+                                                        "type":  "object",
+                                                        "properties":  {
+                                                                           "position":  {
+                                                                                            "type":  "integer",
+                                                                                            "format":  "int32"
+                                                                                        }
+                                                                       }
+                                                    },
+                                       "Settings":  {
+                                                        "type":  "object",
+                                                        "properties":  {
+                                                                           "timezone":  {
+                                                                                            "type":  "string"
+                                                                                        }
+                                                                       }
+                                                    },
+                                       "Point":  {
+                                                     "type":  "object",
+                                                     "properties":  {
+                                                                        "month":  {
+                                                                                      "type":  "string"
+                                                                                  },
+                                                                        "value":  {
+                                                                                      "type":  "number"
+                                                                                  }
+                                                                    }
+                                                 },
+                                       "Progress":  {
+                                                        "type":  "object",
+                                                        "properties":  {
+                                                                           "exerciseId":  {
+                                                                                              "type":  "integer",
+                                                                                              "format":  "int64"
+                                                                                          },
+                                                                           "name":  {
+                                                                                        "type":  "string"
+                                                                                    },
+                                                                           "metric":  {
+                                                                                          "type":  "string"
+                                                                                      },
+                                                                           "unit":  {
+                                                                                        "type":  "string"
+                                                                                    },
+                                                                           "points":  {
+                                                                                          "type":  "array",
+                                                                                          "items":  {
+                                                                                                        "$ref":  "#/components/schemas/Point"
+                                                                                                    }
+                                                                                      },
+                                                                           "changePercent":  {
+                                                                                                 "type":  "number"
+                                                                                             },
+                                                                           "records":  {
+                                                                                           "$ref":  "#/components/schemas/Records"
+                                                                                       }
+                                                                       }
+                                                    },
+                                       "Records":  {
+                                                       "type":  "object",
+                                                       "properties":  {
+                                                                          "maxWeight":  {
+                                                                                            "type":  "number"
+                                                                                        },
+                                                                          "maxReps":  {
+                                                                                          "type":  "integer",
+                                                                                          "format":  "int32"
+                                                                                      },
+                                                                          "bestSetVolume":  {
+                                                                                                "type":  "number"
+                                                                                            },
+                                                                          "bestSessionVolume":  {
+                                                                                                    "type":  "number"
+                                                                                                },
+                                                                          "estimatedOneRm":  {
+                                                                                                 "type":  "number"
+                                                                                             }
+                                                                      }
+                                                   },
+                                       "Day":  {
+                                                   "type":  "object",
+                                                   "properties":  {
+                                                                      "date":  {
+                                                                                   "type":  "string",
+                                                                                   "format":  "date"
+                                                                               },
+                                                                      "workouts":  {
+                                                                                       "type":  "integer",
+                                                                                       "format":  "int64"
+                                                                                   },
+                                                                      "volume":  {
+                                                                                     "type":  "number"
+                                                                                 }
+                                                                  }
+                                               },
+                                       "Report":  {
+                                                      "type":  "object",
+                                                      "properties":  {
+                                                                         "period":  {
+                                                                                        "type":  "string"
+                                                                                    },
+                                                                         "start":  {
+                                                                                       "type":  "string",
+                                                                                       "format":  "date"
+                                                                                   },
+                                                                         "end":  {
+                                                                                     "type":  "string",
+                                                                                     "format":  "date"
+                                                                                 },
+                                                                         "current":  {
+                                                                                         "$ref":  "#/components/schemas/Totals"
+                                                                                     },
+                                                                         "previous":  {
+                                                                                          "$ref":  "#/components/schemas/Totals"
+                                                                                      },
+                                                                         "workoutChange":  {
+                                                                                               "type":  "integer",
+                                                                                               "format":  "int64"
+                                                                                           },
+                                                                         "volumeChangePercent":  {
+                                                                                                     "type":  "number"
+                                                                                                 },
+                                                                         "frequency":  {
+                                                                                           "type":  "array",
+                                                                                           "items":  {
+                                                                                                         "$ref":  "#/components/schemas/Day"
+                                                                                                     }
+                                                                                       }
+                                                                     }
+                                                  },
+                                       "Totals":  {
+                                                      "type":  "object",
+                                                      "properties":  {
+                                                                         "workouts":  {
+                                                                                          "type":  "integer",
+                                                                                          "format":  "int64"
+                                                                                      },
+                                                                         "exercises":  {
+                                                                                           "type":  "integer",
+                                                                                           "format":  "int64"
+                                                                                       },
+                                                                         "sets":  {
+                                                                                      "type":  "integer",
+                                                                                      "format":  "int64"
+                                                                                  },
+                                                                         "repetitions":  {
+                                                                                             "type":  "integer",
+                                                                                             "format":  "int64"
+                                                                                         },
+                                                                         "durationSeconds":  {
+                                                                                                 "type":  "integer",
+                                                                                                 "format":  "int64"
+                                                                                             },
+                                                                         "volume":  {
+                                                                                        "type":  "number"
+                                                                                    }
+                                                                     }
+                                                  }
+                                   },
+                       "securitySchemes":  {
+                                               "apiKey":  {
+                                                              "type":  "apiKey",
+                                                              "name":  "X-Api-Key",
+                                                              "in":  "header"
+                                                          },
+                                               "telegramIdentity":  {
+                                                                        "type":  "apiKey",
+                                                                        "name":  "X-Telegram-User-Id",
+                                                                        "in":  "header"
+                                                                    }
+                                           }
+                   }
+}
