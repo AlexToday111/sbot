@@ -1,5 +1,7 @@
 package dev.workout.telegram.bot;
 
+import static dev.workout.common.I18n.t;
+
 import com.fasterxml.jackson.databind.*;
 import dev.workout.common.*;
 import dev.workout.telegram.callback.CallbackRouter;
@@ -25,6 +27,8 @@ public class UpdateProcessor {
   private final CallbackRouter router;
   private final MenuHandler menu;
   private final Clock clock;
+  private final TelegramClient telegram;
+  private final dev.workout.workout.application.CsvImportService imports;
 
   public UpdateProcessor(
       TransactionTemplate tx,
@@ -34,7 +38,11 @@ public class UpdateProcessor {
       ObjectMapper mapper,
       CallbackRouter r,
       MenuHandler m,
-      Clock c) {
+      Clock c,
+      TelegramClient telegram,
+      dev.workout.workout.application.CsvImportService imports) {
+    this.telegram = telegram;
+    this.imports = imports;
     this.tx = tx;
     jdbc = j;
     users = u;
@@ -50,6 +58,7 @@ public class UpdateProcessor {
   }
 
   public void process(JsonNode update) {
+    var previousLocale = org.springframework.context.i18n.LocaleContextHolder.getLocaleContext();
     try {
       tx.executeWithoutResult(status -> apply(update));
     } catch (DomainException ex) {
@@ -61,7 +70,10 @@ public class UpdateProcessor {
       log.error("Telegram update {} rolled back", update.path("update_id").asLong(), ex);
       error(
           update,
-          "This action could not be saved. Please try again. Previously confirmed sets are still saved.");
+          t(
+              "This action could not be saved. Please try again. Previously confirmed sets are still saved."));
+    } finally {
+      org.springframework.context.i18n.LocaleContextHolder.setLocaleContext(previousLocale);
     }
   }
 
@@ -79,6 +91,7 @@ public class UpdateProcessor {
         users.register(
             from.path("id").asLong(), nullable(from, "username"), nullable(from, "first_name"));
     users.lock(user.id);
+    dev.workout.common.I18n.language(user.language);
     BotState state =
         states
             .findById(user.id)
@@ -112,12 +125,25 @@ public class UpdateProcessor {
       }
       String route = action.substring(split + 1);
       screen =
-          !user.onboarded && !route.equals("menu:onboard")
+          !user.onboarded
+                  && !route.equals("menu:onboard")
+                  && !route.equals("menu:language")
+                  && !route.startsWith("menu:setlanguage:")
               ? menu.welcome()
               : router.route(c, route);
     } else {
       String text = message.path("text").asText("");
-      if (text.startsWith("/")) {
+      if (message.has("document") && user.onboarded) {
+        if (state.flow != Flow.CSV_IMPORT)
+          throw new DomainException(t("Choose Workouts → Import CSV before sending a file."));
+        var draft = imports.draft(c.uid(), telegram.downloadCsv(message.path("document")));
+        data.templateId = null;
+        data.name = draft.name();
+        data.description = draft.description();
+        data.targets.clear();
+        data.targets.addAll(draft.exercises());
+        screen = router.route(c, "workout:draft");
+      } else if (text.startsWith("/")) {
         String command = text.split("\\s+")[0].split("@")[0];
         screen =
             switch (command) {
@@ -137,10 +163,12 @@ public class UpdateProcessor {
                     : menu.welcome();
               }
               default ->
-                  Screen.title("Use the buttons below, or /menu to open your dashboard.")
+                  Screen.title(t("Use the buttons below, or /menu to open your dashboard."))
                       .home()
                       .build();
             };
+      } else if (user.onboarded && state.flow == Flow.CSV_IMPORT) {
+        throw new DomainException(t("Send a .csv file as a document."));
       } else screen = !user.onboarded ? menu.welcome() : router.text(c, text);
     }
     state.context = write(data);
@@ -174,6 +202,7 @@ public class UpdateProcessor {
                   nullable(from, "username"),
                   nullable(from, "first_name"));
           users.lock(user.id);
+          dev.workout.common.I18n.language(user.language);
           var state =
               states
                   .findById(user.id)
@@ -186,7 +215,7 @@ public class UpdateProcessor {
                       });
           Screen old =
               state.screen == null
-                  ? Screen.title("Open the menu to continue.").home().build()
+                  ? Screen.title(t("Open the menu to continue.")).home().build()
                   : read(state.screen, Screen.class);
           // Replace a previous error prefix instead of accumulating messages.
           String separator = "\n\n——\n\n";
@@ -195,7 +224,7 @@ public class UpdateProcessor {
                   ? old.text().substring(old.text().indexOf(separator) + separator.length())
                   : old.text();
           String text = message + "\n\n——\n\n" + prompt;
-          if (text.length() > 3900) text = message + "\n\nPlease use the buttons below.";
+          if (text.length() > 3900) text = message + t("\n\nPlease use the buttons below.");
           queue(state, new Screen(text, old.rows()));
           states.save(state);
           advance(id);

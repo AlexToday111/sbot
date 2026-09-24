@@ -12,7 +12,7 @@ public class UserController {
 
   public record Registration(String username, String firstName) {}
 
-  public record Settings(String timezone) {}
+  public record Settings(String timezone, String language) {}
 
   private final UserService users;
 
@@ -34,7 +34,7 @@ public class UserController {
 
   @PatchMapping
   public Profile settings(@RequestAttribute long telegramId, @RequestBody Settings body) {
-    return view(users.settings(users.byTelegram(telegramId).id, body.timezone()));
+    return view(users.settings(users.byTelegram(telegramId).id, body.timezone(), body.language()));
   }
 
   private Profile view(User u) {

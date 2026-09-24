@@ -1,5 +1,7 @@
 package dev.workout.telegram.message;
 
+import static dev.workout.common.I18n.t;
+
 import java.util.*;
 
 public record Screen(String text, List<List<Button>> rows) {
@@ -33,7 +35,7 @@ public record Screen(String text, List<List<Button>> rows) {
     }
 
     public Builder home() {
-      return button("⌂ Main menu", "menu:home");
+      return button(t("⌂ Main menu"), "menu:home");
     }
 
     public Screen build() {

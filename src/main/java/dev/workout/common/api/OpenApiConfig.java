@@ -12,10 +12,10 @@ public class OpenApiConfig {
     return new OpenAPI()
         .info(
             new Info()
-                .title("Workout Tracker internal API")
+                .title("Внутренний API дневника тренировок")
                 .version("0.1.0")
                 .description(
-                    "Trusted service API. X-Api-Key authenticates the calling service; X-Telegram-User-Id selects the user. Never expose this impersonation-capable API key to client applications. Weights are kg, distance km, duration seconds."))
+                    "API для доверенных сервисов. X-Api-Key проверяет вызывающий сервис; X-Telegram-User-Id выбирает пользователя. Не передавайте ключ клиентским приложениям: он позволяет действовать от имени любого пользователя. Вес в кг, расстояние в км, длительность в секундах."))
         .components(
             new Components()
                 .addSecuritySchemes(

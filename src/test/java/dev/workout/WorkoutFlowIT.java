@@ -56,6 +56,8 @@ class WorkoutFlowIT {
   @Autowired OutboxService outbox;
   @Autowired ObjectMapper json;
   @Autowired MockMvc mvc;
+  @Autowired CsvImportService imports;
+  @org.springframework.test.context.bean.override.mockito.MockitoSpyBean TelegramClient telegram;
   static AtomicLong identities = new AtomicLong(1000), updates = new AtomicLong(10000);
 
   long user() {
@@ -469,6 +471,119 @@ class WorkoutFlowIT {
     assertThat(sessions.repeat(uid, s.id(), "repeat-key").id()).isEqualTo(repeated.id());
     assertThatThrownBy(() -> sessions.start(uid, t.id(), "repeat-key"))
         .isInstanceOf(DomainException.class);
+  }
+
+  @Test
+  void languagePersistsAndDoesNotLeakBetweenUsers() throws Exception {
+    Driver ru = new Driver();
+    ru.text("/start");
+    ru.tap("menu:language");
+    ru.tap("menu:setlanguage:ru");
+    assertThat(ru.screen().text()).contains("Дневник тренировок");
+    ru.tap("menu:onboard");
+    ru.text("/menu");
+    assertThat(ru.screen().text()).contains("ТРЕНИРОВКИ");
+    assertThat(users.get(ru.uid()).language).isEqualTo("ru");
+    Driver en = new Driver();
+    en.text("/start");
+    assertThat(en.screen().text()).contains("Workout Tracker");
+    ru.tap("workout:new");
+    ru.text(" ");
+    assertThat(ru.screen().text()).contains("Введите название");
+    ru.text("/menu");
+    ru.tap("menu:settings");
+    ru.tap("menu:language");
+    ru.tap("menu:setlanguage:en");
+    assertThat(ru.screen().text()).contains("Language: English");
+    assertThat(users.get(ru.uid()).language).isEqualTo("en");
+  }
+
+  @Test
+  void csvImportIsAtomicAndPrivateAndAvailableViaApi() throws Exception {
+    long uid = user();
+    String header = String.join(",", WorkoutCsv.HEADER) + "\n";
+    String csv = header + "Грудь,Bench Press,STRENGTH,3,8,70,90\nГрудь,Мой жим,STRENGTH,3,10,20,60";
+    var t = imports.save(uid, csv.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+    assertThat(t.exercises()).hasSize(2);
+    assertThat(t.exercises().get(0).exerciseId()).isEqualTo(exercise(uid, "Bench Press"));
+    assertThat(exercises.get(uid, t.exercises().get(1).exerciseId()).userId).isEqualTo(uid);
+    long other = user();
+    assertThatThrownBy(() -> templates.get(other, t.id())).isInstanceOf(DomainException.class);
+    String invalid =
+        header + "День,Rollback exercise,STRENGTH,3,8,70,90\nДень,Bench Press,CARDIO,3,8,70,90";
+    assertThatThrownBy(
+            () -> imports.save(uid, invalid.getBytes(java.nio.charset.StandardCharsets.UTF_8)))
+        .isInstanceOf(DomainException.class);
+    assertThat(exercises.search(uid, "Rollback exercise", 0)).isEmpty();
+    assertThat(templates.list(uid, 0)).hasSize(1);
+    mvc.perform(
+            multipart("/api/workouts/import")
+                .header("X-Api-Key", "integration-test-secret")
+                .header("X-Telegram-User-Id", users.get(other).telegramUserId))
+        .andExpect(status().isBadRequest());
+    mvc.perform(
+            multipart("/api/workouts/import")
+                .file(
+                    new org.springframework.mock.web.MockMultipartFile(
+                        "file", "large.csv", "text/csv", new byte[65537]))
+                .header("X-Api-Key", "integration-test-secret")
+                .header("X-Telegram-User-Id", users.get(other).telegramUserId))
+        .andExpect(status().isBadRequest());
+    var file =
+        new org.springframework.mock.web.MockMultipartFile(
+            "file",
+            "workout.csv",
+            "text/csv",
+            csv.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+    mvc.perform(
+            multipart("/api/workouts/import")
+                .file(file)
+                .header("X-Api-Key", "integration-test-secret")
+                .header("X-Telegram-User-Id", users.get(other).telegramUserId))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.name").value("Грудь"));
+    mvc.perform(
+            patch("/api/me")
+                .header("X-Api-Key", "integration-test-secret")
+                .header("X-Telegram-User-Id", users.get(other).telegramUserId)
+                .contentType("application/json")
+                .content("{\"language\":\"ru\"}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.language").value("ru"));
+    mvc.perform(
+            patch("/api/me")
+                .header("X-Api-Key", "integration-test-secret")
+                .header("X-Telegram-User-Id", users.get(other).telegramUserId)
+                .contentType("application/json")
+                .content("{\"language\":\"de\"}"))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  void telegramCsvRequiresReviewAndReplayedUpdateDoesNotDuplicate() throws Exception {
+    Driver d = new Driver();
+    d.text("/start");
+    d.tap("menu:onboard");
+    d.tap("workout:import");
+    byte[] csv =
+        (String.join(",", WorkoutCsv.HEADER) + "\nМой план,Bench Press,STRENGTH,3,8,70,90")
+            .getBytes(java.nio.charset.StandardCharsets.UTF_8);
+    org.mockito.Mockito.doReturn(csv)
+        .when(telegram)
+        .downloadCsv(org.mockito.ArgumentMatchers.any());
+    var update = (com.fasterxml.jackson.databind.node.ObjectNode) d.message("");
+    ((com.fasterxml.jackson.databind.node.ObjectNode) update.get("message"))
+        .set("document", json.valueToTree(Map.of("file_id", "test", "file_name", "test.csv")));
+    processor.process(update);
+    d.delivered();
+    assertThat(templates.list(d.uid(), 0)).isEmpty();
+    assertThat(d.screen().text()).contains("Мой план");
+    processor.process(update);
+    d.tap("workout:save");
+    assertThat(templates.list(d.uid(), 0)).hasSize(1);
+    d.tap("workout:import");
+    d.text("/cancel");
+    assertThat(d.state().flow.name()).isEqualTo("HOME");
   }
 
   class Driver {

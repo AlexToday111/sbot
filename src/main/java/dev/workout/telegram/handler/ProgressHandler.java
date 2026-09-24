@@ -1,5 +1,7 @@
 package dev.workout.telegram.handler;
 
+import static dev.workout.common.I18n.t;
+
 import dev.workout.analytics.application.AnalyticsService;
 import dev.workout.common.*;
 import dev.workout.exercise.application.ExerciseService;
@@ -32,14 +34,15 @@ public class ProgressHandler implements CallbackHandler {
     c.flow(Flow.HOME);
     return switch (p[1]) {
       case "menu" ->
-          Screen.title("▥ Progress\n\nCompleted workouts only. Calendar periods use your timezone.")
-              .button("This week", "progress:period:week")
-              .button("This month", "progress:period:month")
-              .button("3 months", "progress:period:quarter")
-              .button("This year", "progress:period:year")
-              .button("Exercises", "progress:exercises:0")
-              .button("Training volume", "progress:period:month")
-              .button("Workout frequency", "progress:frequency:month:0")
+          Screen.title(
+                  t("▥ Progress\n\nCompleted workouts only. Calendar periods use your timezone."))
+              .button(t("This week"), "progress:period:week")
+              .button(t("This month"), "progress:period:month")
+              .button(t("3 months"), "progress:period:quarter")
+              .button(t("This year"), "progress:period:year")
+              .button(t("Exercises"), "progress:exercises:0")
+              .button(t("Training volume"), "progress:period:month")
+              .button(t("Workout frequency"), "progress:frequency:month:0")
               .home()
               .build();
       case "period" -> period(c, p[2]);
@@ -47,7 +50,7 @@ public class ProgressHandler implements CallbackHandler {
       case "exercises" -> exerciseList(c, Integer.parseInt(p[2]));
       case "exercise" -> exercise(c, Long.parseLong(p[2]), p[3]);
       case "history" -> exerciseHistory(c, Long.parseLong(p[2]), Integer.parseInt(p[3]));
-      default -> throw new DomainException("Unknown progress action.");
+      default -> throw new DomainException(t("Unknown progress action."));
     };
   }
 
@@ -63,33 +66,33 @@ public class ProgressHandler implements CallbackHandler {
                     + r.start()
                     + " – "
                     + r.end().minusDays(1)
-                    + "\n\nWorkouts: "
+                    + t("\n\nWorkouts: ")
                     + t.workouts()
-                    + "\nExercises: "
+                    + t("\nExercises: ")
                     + t.exercises()
-                    + "\nSets: "
+                    + t("\nSets: ")
                     + t.sets()
-                    + "\nRepetitions: "
+                    + t("\nRepetitions: ")
                     + t.repetitions()
-                    + "\nTraining time: "
+                    + t("\nTraining time: ")
                     + Format.duration(t.durationSeconds())
-                    + "\nStrength volume: "
+                    + t("\nStrength volume: ")
                     + Format.n(t.volume())
-                    + " kg")
+                    + t(" kg"))
             .line(
-                "\nPrevious full period: "
+                t("\nPrevious full period: ")
                     + prev.workouts()
-                    + " workouts · "
+                    + t(" workouts · ")
                     + Format.n(prev.volume())
-                    + " kg")
+                    + t(" kg"))
             .line(
-                "Change: "
+                t("Change: ")
                     + (r.workoutChange() > 0 ? "+" : "")
                     + r.workoutChange()
-                    + " workouts · "
+                    + t(" workouts · ")
                     + (r.volumeChangePercent() == null
-                        ? "no volume baseline"
-                        : Format.n(r.volumeChangePercent()) + "% volume"));
+                        ? t("no volume baseline")
+                        : Format.n(r.volumeChangePercent()) + t("% volume")));
     long elapsed =
         Math.max(
             1,
@@ -98,11 +101,11 @@ public class ProgressHandler implements CallbackHandler {
                     java.time.LocalDate.now(clock.withZone(ZoneId.of(c.user().timezone))))
                 + 1);
     b.line(
-        "Average: "
+        t("Average: ")
             + String.format(java.util.Locale.ROOT, "%.1f", t.workouts() * 7.0 / elapsed)
-            + " workouts/week so far");
-    return b.button("Daily frequency & volume", "progress:frequency:" + period + ":0")
-        .button("← Progress", "progress:menu")
+            + t(" workouts/week so far"));
+    return b.button(t("Daily frequency & volume"), "progress:frequency:" + period + ":0")
+        .button(t("← Progress"), "progress:menu")
         .home()
         .build();
   }
@@ -112,7 +115,7 @@ public class ProgressHandler implements CallbackHandler {
     var list = r.frequency();
     var b =
         Screen.title(
-            "Workout frequency · " + label(period) + "\nDays without workouts are omitted.");
+            t("Workout frequency · ") + label(period) + t("\nDays without workouts are omitted."));
     int from = Math.min(Math.max(0, page) * 12, list.size()), to = Math.min(from + 12, list.size());
     list.subList(from, to)
         .forEach(
@@ -121,51 +124,52 @@ public class ProgressHandler implements CallbackHandler {
                     d.date()
                         + " · "
                         + d.workouts()
-                        + " workout(s) · "
+                        + t(" workout(s) · ")
                         + Format.n(d.volume())
-                        + " kg"));
-    if (list.isEmpty()) b.line("\nNo completed workouts yet.");
-    if (page > 0) b.button("← Previous", "progress:frequency:" + period + ":" + (page - 1));
-    if (to < list.size()) b.button("Next →", "progress:frequency:" + period + ":" + (page + 1));
-    return b.button("← Period", "progress:period:" + period).home().build();
+                        + t(" kg")));
+    if (list.isEmpty()) b.line(t("\nNo completed workouts yet."));
+    if (page > 0) b.button(t("← Previous"), "progress:frequency:" + period + ":" + (page - 1));
+    if (to < list.size()) b.button(t("Next →"), "progress:frequency:" + period + ":" + (page + 1));
+    return b.button(t("← Period"), "progress:period:" + period).home().build();
   }
 
   private Screen exerciseList(Interaction c, int page) {
     var list = exercises.search(c.uid(), "", page);
-    var b = Screen.title("Exercise progress\nChoose an exercise.");
+    var b = Screen.title(t("Exercise progress\nChoose an exercise."));
     list.forEach(e -> b.button(e.name, "progress:exercise:" + e.id + ":quarter"));
-    if (page > 0) b.button("← Previous", "progress:exercises:" + (page - 1));
-    if (list.size() == 8) b.button("Next →", "progress:exercises:" + (page + 1));
-    return b.button("← Progress", "progress:menu").home().build();
+    if (page > 0) b.button(t("← Previous"), "progress:exercises:" + (page - 1));
+    if (list.size() == 8) b.button(t("Next →"), "progress:exercises:" + (page + 1));
+    return b.button(t("← Progress"), "progress:menu").home().build();
   }
 
   private Screen exercise(Interaction c, long eid, String period) {
     var p = analytics.progress(c.uid(), eid, period);
     var b =
-        Screen.title(p.name() + "\n" + label(period) + "\n\n" + p.metric() + " (" + p.unit() + ")");
+        Screen.title(
+            p.name() + "\n" + label(period) + "\n\n" + t(p.metric()) + " (" + t(p.unit()) + ")");
     p.points().forEach(point -> b.line(point.month() + "   " + Format.n(point.value())));
-    if (p.points().isEmpty()) b.line("Complete a workout to see progress.");
-    if (p.changePercent() != null) b.line("\nChange: " + Format.n(p.changePercent()) + "%");
+    if (p.points().isEmpty()) b.line(t("Complete a workout to see progress."));
+    if (p.changePercent() != null) b.line(t("\nChange: ") + Format.n(p.changePercent()) + "%");
     if (p.records() != null) {
       var r = p.records();
       b.line(
-          "\n🏆 All-time records\nMax weight: "
+          t("\n🏆 All-time records\nMax weight: ")
               + Format.n(r.maxWeight())
-              + " kg\nMost reps: "
+              + t(" kg\nMost reps: ")
               + r.maxReps()
-              + "\nBest set volume: "
+              + t("\nBest set volume: ")
               + Format.n(r.bestSetVolume())
-              + " kg\nBest session volume: "
+              + t(" kg\nBest session volume: ")
               + Format.n(r.bestSessionVolume())
-              + " kg\nEstimated 1RM: "
+              + t(" kg\nEstimated 1RM: ")
               + Format.n(r.estimatedOneRm())
-              + " kg\nEpley estimate; high-rep estimates are less reliable.");
+              + t(" kg\nEpley estimate; high-rep estimates are less reliable."));
     }
-    return b.button("This month", "progress:exercise:" + eid + ":month")
-        .button("3 months", "progress:exercise:" + eid + ":quarter")
-        .button("This year", "progress:exercise:" + eid + ":year")
-        .button("Recent workouts", "progress:history:" + eid + ":0")
-        .button("← Exercises", "progress:exercises:0")
+    return b.button(t("This month"), "progress:exercise:" + eid + ":month")
+        .button(t("3 months"), "progress:exercise:" + eid + ":quarter")
+        .button(t("This year"), "progress:exercise:" + eid + ":year")
+        .button(t("Recent workouts"), "progress:history:" + eid + ":0")
+        .button(t("← Exercises"), "progress:exercises:0")
         .home()
         .build();
   }
@@ -173,8 +177,8 @@ public class ProgressHandler implements CallbackHandler {
   private Screen exerciseHistory(Interaction c, long eid, int page) {
     var e = exercises.get(c.uid(), eid);
     var list = sessions.exerciseHistory(c.uid(), eid, page);
-    var b = Screen.title(e.name + "\n\nRecent workouts");
-    if (list.isEmpty()) b.line("No completed workouts.");
+    var b = Screen.title(e.name + t("\n\nRecent workouts"));
+    if (list.isEmpty()) b.line(t("No completed workouts."));
     for (var s : list) {
       b.line(
           "\n"
@@ -187,23 +191,25 @@ public class ProgressHandler implements CallbackHandler {
               .flatMap(x -> x.sets().stream())
               .toList();
       sets.stream().limit(5).forEach(x -> b.line(Format.set(x)));
-      if (sets.size() > 5) b.line("… " + sets.size() + " sets total");
+      if (sets.size() > 5) b.line("… " + sets.size() + t(" sets total"));
       b.button(
-          "Full workout · " + s.startedAt().atZone(ZoneId.of(c.user().timezone)).toLocalDate(),
+          t("Full workout · ") + s.startedAt().atZone(ZoneId.of(c.user().timezone)).toLocalDate(),
           "history:detail:" + s.id() + ":0:0");
     }
-    if (page > 0) b.button("← Previous", "progress:history:" + eid + ":" + (page - 1));
-    if (list.size() == 5) b.button("Next →", "progress:history:" + eid + ":" + (page + 1));
-    return b.button("← Exercise progress", "progress:exercise:" + eid + ":quarter").home().build();
+    if (page > 0) b.button(t("← Previous"), "progress:history:" + eid + ":" + (page - 1));
+    if (list.size() == 5) b.button(t("Next →"), "progress:history:" + eid + ":" + (page + 1));
+    return b.button(t("← Exercise progress"), "progress:exercise:" + eid + ":quarter")
+        .home()
+        .build();
   }
 
   private String label(String period) {
     return switch (period) {
-      case "week" -> "This week";
-      case "month" -> "This month";
-      case "quarter" -> "Last 3 calendar months";
-      case "year" -> "This year";
-      default -> throw new DomainException("Invalid period.");
+      case "week" -> t("This week");
+      case "month" -> t("This month");
+      case "quarter" -> t("Last 3 calendar months");
+      case "year" -> t("This year");
+      default -> throw new DomainException(t("Invalid period."));
     };
   }
 }

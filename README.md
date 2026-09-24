@@ -1,139 +1,195 @@
-# Telegram Workout Tracker
+# Дневник тренировок в Telegram
 
-A Telegram-first workout log: **Plan → Train → Record → Analyze → Repeat**.
+**Планируйте → тренируйтесь → записывайте → анализируйте → повторяйте.**
 
-Java 17, Spring Boot 3.5, Spring Data JPA, PostgreSQL 17, Flyway, Maven and Docker Compose. The bot uses inline keyboards and edits one persistent interface message. Confirmed sets are committed immediately.
+Бот для ведения тренировок: Java 17, Spring Boot 3.5, Spring Data JPA, PostgreSQL 17, Flyway, Maven и Docker Compose. Основной интерфейс — личный чат в Telegram. Бот редактирует одно сообщение с кнопками; подтверждённые подходы сразу сохраняются в базе.
 
-## Run with Docker
+## Запуск через Docker
 
-Requirements: Docker Engine / Docker Desktop with Compose, and a Telegram bot token to enable Telegram. No local Java or Maven installation is needed for Docker deployment.
+Потребуются Docker Engine / Docker Desktop с Compose и токен Telegram-бота. Локальные Java и Maven для этого способа не нужны.
 
-1. Create a bot by messaging [@BotFather](https://t.me/BotFather) in Telegram. Send `/newbot`, choose a name and username, and copy the token into your **local** `.env` file.
-2. Copy `.env.example` to `.env` if it does not already exist:
+1. Создайте бота через [@BotFather](https://t.me/BotFather): команда `/newbot`, название и имя пользователя.
+2. Если `.env` ещё нет, скопируйте пример:
 
-   ```sh
-   cp .env.example .env
-   # PowerShell: Copy-Item .env.example .env
+   ```powershell
+   Copy-Item .env.example .env
    ```
 
-3. Set `POSTGRES_PASSWORD` and `INTERNAL_API_KEY` to separate random secrets. Set `TELEGRAM_BOT_TOKEN` and `TELEGRAM_ENABLED=true` to enable the bot. Keep `.env` private; it is ignored by Git and Docker build context.
-4. Start:
+   В Linux/macOS: `cp .env.example .env`.
+3. Редактируйте именно **`.env`**, а не `.env.example`: Docker Compose читает `.env`. Укажите разные случайные значения `POSTGRES_PASSWORD` и `INTERNAL_API_KEY`, свой `TELEGRAM_BOT_TOKEN` и `TELEGRAM_ENABLED=true`. `.env` исключён из Git и контекста сборки Docker.
+4. Запустите приложение:
 
    ```sh
    docker compose up --build -d
    docker compose logs -f app
    ```
 
-5. Open the bot in a **private chat**, send `/start`, and tap **Start**. Commands are registered automatically when Telegram is enabled.
+5. Откройте личный чат с ботом, отправьте `/start`, при необходимости выберите **Русский / English**, затем **Начать / Start**.
 
-The app is available at `http://localhost:8080`. Compose binds HTTP to loopback and does not publish PostgreSQL. You can leave `TELEGRAM_ENABLED=false` to use the API and tests without a bot token. An enabled bot with an empty token fails startup.
+После изменения переменных `.env` выполните `docker compose up -d app`: простой `restart` не обновляет окружение контейнера. После изменения кода используйте `docker compose up --build -d app`.
 
-If this workspace already contains a generated `.env`, it has local database/API secrets and Telegram disabled. Add your own bot token and enable it, then run `docker compose up -d app` to apply environment changes.
+HTTP-сервис слушает `http://localhost:8080`, но отдельной главной веб-страницы нет. Проверка состояния: [health](http://localhost:8080/actuator/health), документация API: [Swagger UI](http://localhost:8080/swagger-ui/index.html). HTTP доступен только через loopback; PostgreSQL наружу не опубликован.
+
+При `TELEGRAM_ENABLED=false` API продолжает работать без токена. Включённый Telegram с пустым токеном не даст приложению запуститься. Если `.env` был создан автоматически, Telegram в нём может быть выключен.
 
 ```sh
 docker compose ps
 curl http://localhost:8080/actuator/health
-docker compose restart app       # Exercise restart recovery
-docker compose stop              # Stop, preserving containers and database
-docker compose down              # Remove containers; database volume remains
+docker compose restart app       # Проверить восстановление после перезапуска
+docker compose stop              # Остановить, сохранив контейнеры и базу
+docker compose down              # Удалить контейнеры, сохранив том базы
 ```
 
-Do not remove the `postgres_data` volume if you want to keep workout history. Back up PostgreSQL before migrations or host maintenance. An example backup command is `docker compose exec -T db sh -c 'pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB"' > workout.sql`; keep backups outside the repository and test restoration separately.
+Не удаляйте том `postgres_data`, если нужна история тренировок. Перед миграциями и обслуживанием делайте резервную копию PostgreSQL. Пример для оболочки Linux/macOS:
 
-## Use the bot
+```sh
+docker compose exec -T db sh -c 'pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB"' > workout.sql
+```
 
-| Command | Purpose |
+Храните копии вне репозитория и отдельно проверяйте восстановление.
+
+## Язык и настройки
+
+Доступны **русский (`ru`)** и **английский (`en`)**. Выбор — на приветственном экране или в **Настройки → Русский / English**. Язык хранится отдельно для каждого пользователя в PostgreSQL, применяется сразу и сохраняется после перезапуска. По умолчанию используется английский.
+
+Переводятся меню, кнопки, подсказки, единицы измерения и сообщения об ошибках. Пользовательские названия тренировок, упражнений и заметки сохраняются как введены. Названия исходного каталога также остаются на английском: например, `Bench Press`. Можно создавать свои упражнения с русскими названиями, в том числе через CSV. Список команд Telegram имеет русские описания для русского языка самого Telegram; язык экранов выбирается отдельно в боте.
+
+В настройках также задаётся часовой пояс IANA, например `Europe/Moscow`. По умолчанию — `UTC`. Неделя начинается в понедельник; даты тренировок и границы отчётов рассчитываются в выбранном часовом поясе. Единицы — кг и км.
+
+## Работа с ботом
+
+| Команда | Назначение |
 | --- | --- |
-| `/start` | Welcome, dashboard, or active workout recovery |
-| `/menu` | Main dashboard |
-| `/workout` | Select or create a template |
-| `/history` | Completed workout history |
-| `/progress` | Period reports and exercise progress |
-| `/cancel` | Leave the current input flow; does **not** cancel a workout |
+| `/start` | Приветствие, главное меню или восстановление текущей тренировки |
+| `/menu` | Главное меню |
+| `/workout` | Выбор, создание или импорт шаблона |
+| `/history` | История завершённых тренировок |
+| `/progress` | Отчёты и прогресс упражнений |
+| `/cancel` | Отмена текущего ввода; сама тренировка не отменяется |
 
-Create a workout through **Workouts → Create workout → name → Add exercise → Save workout**. Browse the seeded catalog, search by name, or create a custom exercise. Edit a saved template to rename it, change its description, add/remove/reorder exercises, or configure targets. Changes to templates never rewrite session history.
+Создание вручную: **Тренировки → Создать тренировку → название → Добавить упражнение → Сохранить тренировку**. Доступны каталог, поиск и создание собственного упражнения. У шаблона можно менять название, описание, порядок и состав упражнений, а также плановые значения. Изменение шаблона не переписывает историю.
 
-Optional targets use `sets reps weight rest_seconds`, with `-` for omitted values. For example, `4 8 70 90` or `3 12 - 60`. The editor keeps its draft in PostgreSQL until Save. Leaving a flow through `/cancel` discards the input draft, not a saved template or session.
+Плановые значения вводятся как `подходы повторы вес отдых_сек`, например `4 8 70 90`. Для пропуска значения используйте `-`: `3 12 - 60`. Черновик хранится в базе до сохранения. `/cancel` сбрасывает текущий ввод и черновик, сохраняя уже созданные шаблоны и записанные подходы.
 
-During a workout:
+Во время тренировки:
 
-- **Add set → weight → repetitions** saves a strength/bodyweight set. Weight and rep suggestions come from current or previous sets, then template targets.
-- **Repeat [previous set]** records another set in one tap. RPE and notes are deliberately not copied.
-- **Undo last set** reverses that specific set. Repeated undo taps do not remove additional sets.
-- Previous/next exercise navigation preserves every confirmed set.
-- Finish and cancel both require a confirmation screen. Cancelling retains data but excludes the workout from completed history and analytics.
-- `/start` offers Continue, Finish and Cancel when an active workout exists, including after a restart.
+- **Добавить подход → вес → повторы** сразу сохраняет подход. Предлагаемые значения берутся из текущих/предыдущих подходов или плана.
+- **Повторить [подход]** записывает ещё один такой подход; RPE и заметки не копируются.
+- **Убрать последний подход** отменяет конкретный подход. Повторное нажатие устаревшей кнопки не удаляет следующие подходы.
+- Переключение упражнений сохраняет все подтверждённые подходы.
+- Завершение и отмена требуют подтверждения. Отменённая тренировка остаётся в базе, но не входит в историю завершённых тренировок и аналитику.
+- `/start` предлагает продолжить, завершить или отменить активную тренировку, в том числе после перезапуска.
 
-Manual set entry:
+Ручной ввод показателей:
 
-| Type | Format | Example |
+| Тип упражнения | Формат | Пример |
 | --- | --- | --- |
-| Strength | `weight_kg reps` | `70 8` |
-| Bodyweight | `reps [added_weight_kg]` | `12` or `12 5` |
-| Cardio | `duration_seconds distance_km` | `1800 5` |
-| Timed | `duration_seconds` | `60` |
+| Силовое | `вес_кг повторы` | `70 8` |
+| Собственный вес | `повторы [дополнительный_вес_кг]` | `12` или `12 5` |
+| Кардио | `длительность_сек расстояние_км` | `1800 5` |
+| На время | `длительность_сек` | `60` |
 
-Append optional `| RPE | notes`, such as `70 8 | 8.5 | Good depth`. Use `-` to omit RPE. These inputs save immediately. Weight and distance support up to three decimal places; RPE supports one. Bounds are enforced in the application and database.
+Можно добавить `| RPE | заметку`, например `70 8 | 8.5 | Хорошая техника`. Для пропуска RPE используйте `-`. Сообщение сразу сохраняет подход. Вес и расстояние допускают до трёх знаков после запятой, RPE — один. Ограничения проверяются приложением и базой.
 
-## History and progress
+## Импорт тренировки из CSV
 
-History is paginated by month; each workout has a summary and paginated exercise/set details. Exercise history shows recent performance and links to full workouts.
+CSV импортирует **шаблон будущей тренировки** с плановыми значениями. Для записи фактически выполненных подходов используйте обычную тренировку. Один файл содержит одну тренировку и от 1 до 30 упражнений; порядок строк задаёт порядок упражнений.
 
-Progress includes this week, this month, the last three calendar months (including the current month), and this calendar year. Reports include workout count, exercises performed, sets, repetitions, training duration, strength volume, daily frequency, and comparison with the **previous full period**. Partial current periods are therefore not like-for-like comparisons. A zero baseline is shown without a percentage.
+В Telegram откройте **Тренировки → Импорт CSV**, затем отправьте файл вложением **как документ**. Бот покажет черновик: проверьте его, при необходимости измените и нажмите **Сохранить тренировку**. До этого шаблон не сохранён. `/cancel` отменяет ввод. Загруженный файл заменяет текущий черновик, но не меняет существующий шаблон или активную тренировку.
 
-Calendar boundaries use the user's IANA timezone, configurable in Settings; weeks start on Monday. Session start time determines which period contains the workout. Only completed workouts count. An exercise is counted as performed only if it has a non-voided set. Frequency averages use elapsed calendar days.
+Готовый пример: [docs/workout-example.csv](docs/workout-example.csv).
 
-Strength volume is `sum(weight × reps)` for strength exercises. Bodyweight, timed and cardio metrics do not inflate strength volume. Session duration is elapsed wall-clock time between start and finish; there is no pause clock.
+```csv
+workout,exercise,metric_type,sets,reps,weight,rest_seconds
+Грудь и плечи,Bench Press,STRENGTH,3,8,70,90
+Грудь и плечи,Shoulder Press,STRENGTH,3,10,20,60
+Грудь и плечи,Планка,TIMED,3,,,60
+```
 
-After completion, strength records track max weight, max repetitions, best set volume, best session volume, and Epley estimated 1RM. A single-rep set uses its actual weight; zero-rep sets have no 1RM estimate. Exercise progression groups monthly maxima: estimated 1RM for strength, reps for bodyweight, distance for cardio, duration for timed exercises. High-rep 1RM estimates are approximate.
+| Столбец | Содержимое |
+| --- | --- |
+| `workout` | Название тренировки, 1–80 символов; одинаковое во всех строках |
+| `exercise` | Название упражнения, 1–80 символов |
+| `metric_type` | `STRENGTH`, `BODYWEIGHT`, `CARDIO` или `TIMED`; регистр не важен |
+| `sets` | Плановое число подходов, 1–100; необязательно |
+| `reps` | Плановое число повторов, 0–1000; необязательно |
+| `weight` | Плановый вес в кг, 0–2000, до трёх десятичных знаков; необязательно |
+| `rest_seconds` | Отдых в секундах, 0–3600; необязательно, это подсказка, а не таймер |
 
-## Internal REST API and OpenAPI
+Правила файла:
 
-- Swagger UI: `http://localhost:8080/swagger-ui/index.html`
-- OpenAPI JSON: `http://localhost:8080/v3/api-docs`
-- Generated specification snapshot: [docs/openapi.json](docs/openapi.json)
-- Health: `http://localhost:8080/actuator/health`
-- Metrics: `http://localhost:8080/actuator/prometheus` (requires `X-Api-Key`)
+- Кодировка **UTF-8**, допускается BOM; размер до **64 КиБ** (65 536 байт).
+- Первая строка — заголовки выше, в указанном порядке. Названия столбцов остаются английскими при любом языке интерфейса.
+- Разделитель — запятая или точка с запятой, одинаковый для всего файла. При экспорте из Excel выбирайте CSV UTF-8.
+- Необязательные значения — пустая ячейка или `-`. Числа без разделителей тысяч; десятичная точка рекомендуется. Десятичная запятая допустима при разделителе `;` либо внутри кавычек.
+- Поля с разделителем или переводом строки заключаются в двойные кавычки. Кавычка внутри поля удваивается: `"Жим ""сидя"""`.
+- Пустые строки пропускаются; начальные и конечные пробелы значений удаляются.
+- Упражнение ищется по точному названию без учёта регистра среди личных и общих упражнений. Личное имеет приоритет. Если совпадений нет, создаётся личное упражнение указанного типа. Другие пользователи его не видят.
+- Тип должен совпадать с типом найденного упражнения. Ошибка отменяет весь импорт; корректные строки отдельно не сохраняются. Ошибки содержимого строки показывают её номер в последовательности CSV-записей, включая заголовок; пустые строки не считаются.
+- Новые личные упражнения создаются при успешной загрузке черновика и остаются в каталоге, даже если затем отменить черновик. Повторная загрузка использует их снова. Каждое отдельное сохранение создаёт новый шаблон; повторная отправка файла — новый импорт.
 
-OpenAPI and health are public on the local HTTP listener; workout data is not. Every `/api/*` request requires:
+## История, прогресс и рекорды
+
+История разбита по месяцам и страницам. У каждой тренировки есть итог и подробный список упражнений/подходов. История упражнения показывает последние результаты со ссылками на полные тренировки.
+
+Периоды отчётов: эта неделя, этот месяц, последние три календарных месяца (включая текущий), этот год. Доступны число тренировок, выполненных упражнений, подходов, повторов, длительность, силовой объём и частота по дням.
+
+Сравнение идёт с **предыдущим полным периодом**: неполный текущий период не равен ему по длительности. При нулевой базе процент изменения не выводится. Средняя частота рассчитывается по уже прошедшим календарным дням. Принадлежность тренировки периоду определяется временем начала. Учитываются только завершённые тренировки; упражнение считается выполненным, если есть хотя бы один неотменённый подход.
+
+Силовой объём — сумма `вес × повторы` только для силовых упражнений. Собственный вес, кардио и упражнения на время его не увеличивают. Длительность — время между началом и завершением, без отдельного таймера паузы.
+
+После завершения обновляются силовые рекорды: максимальный вес, максимум повторов, лучший объём подхода и тренировки, расчётный одноповторный максимум (1ПМ) по Эпли. Для одного повтора используется фактический вес; для нуля повторов оценка отсутствует. При большом числе повторов оценка менее точна.
+
+Прогресс группируется по месячным максимумам: 1ПМ для силовых, повторы для собственного веса, расстояние для кардио, длительность для упражнений на время.
+
+## Внутренний REST API и OpenAPI
+
+- [Swagger UI](http://localhost:8080/swagger-ui/index.html).
+- [OpenAPI JSON работающего приложения](http://localhost:8080/v3/api-docs).
+- [Снимок спецификации](docs/openapi.json).
+- [Состояние сервиса](http://localhost:8080/actuator/health).
+- Метрики: `http://localhost:8080/actuator/prometheus`, требуется `X-Api-Key`.
+
+OpenAPI и health открыты на локальном HTTP-порту. Запросы `/api/*` требуют заголовков:
 
 ```text
 X-Api-Key: <INTERNAL_API_KEY>
-X-Telegram-User-Id: <positive Telegram user ID>
+X-Telegram-User-Id: <положительный Telegram ID пользователя>
 ```
 
-The key authenticates a **trusted internal caller allowed to act for users**. This is not end-user authentication. Never ship this key in a browser/mobile frontend or expose the service directly to the internet. Add an authentication gateway that verifies Telegram identity before a public frontend. An empty API key disables internal API access with HTTP 503.
+Ключ предназначен для **доверенного внутреннего сервиса, который может действовать от имени пользователей**. Это не пользовательская авторизация. Не помещайте ключ в браузерное/мобильное приложение и не публикуйте сервис напрямую в интернете. Для публичного клиента нужен шлюз с проверкой личности Telegram. При пустом ключе внутренний API возвращает 503.
 
-Use Swagger's Authorize control to supply both headers. `POST /api/me` permits trusted development/API callers to register an identity without opening Telegram.
+В Swagger укажите оба заголовка через Authorize. `POST /api/me` позволяет зарегистрировать пользователя для разработки и внутренних запросов без обращения к Telegram.
 
-| Method | Endpoint | Purpose |
+| Метод | Путь | Назначение |
 | --- | --- | --- |
-| POST / GET / PATCH | `/api/me` | Register, read profile, update timezone |
-| GET / POST | `/api/exercises` | Search catalog / create custom exercise |
-| GET / POST | `/api/workouts` | List / create templates |
-| GET / PUT / DELETE | `/api/workouts/{id}` | Read / replace / soft-delete template |
-| POST | `/api/sessions` | Start a template |
-| GET | `/api/sessions/active` | Recover active session |
-| GET | `/api/sessions/{id}` | Full session and calculated summary |
-| POST | `/api/sessions/{id}/sets` | Record metrics |
-| DELETE | `/api/sessions/{id}/sets/{setId}` | Undo a specific active-session set |
-| PATCH | `/api/sessions/{id}/position` | Select current exercise |
-| POST | `/api/sessions/{id}/finish` | Complete and update records |
-| POST | `/api/sessions/{id}/cancel` | Cancel, retaining data |
-| POST | `/api/sessions/{id}/repeat` | Start from a completed session snapshot |
-| GET | `/api/history?month=2026-09&page=0` | Completed workouts in a local month |
-| GET | `/api/exercises/{id}/history?page=0` | Exercise history |
-| GET | `/api/exercises/{id}/progress?period=quarter` | Progress and all-time records |
-| GET | `/api/analytics/{period}` | `week`, `month`, `quarter`, `year`; aliases `weekly`, `monthly`, `yearly` |
+| POST / GET / PATCH | `/api/me` | Регистрация, профиль, язык и часовой пояс |
+| GET / POST | `/api/exercises` | Поиск / создание личного упражнения |
+| GET / POST | `/api/workouts` | Список / создание шаблона |
+| POST | `/api/workouts/import` | Импорт CSV, multipart-поле `file`; сразу сохраняет новый шаблон |
+| GET / PUT / DELETE | `/api/workouts/{id}` | Чтение / замена / мягкое удаление шаблона |
+| POST | `/api/sessions` | Начать тренировку по шаблону |
+| GET | `/api/sessions/active` | Текущая тренировка |
+| GET | `/api/sessions/{id}` | Полная тренировка и итоги |
+| POST | `/api/sessions/{id}/sets` | Записать подход |
+| DELETE | `/api/sessions/{id}/sets/{setId}` | Отменить подход активной тренировки |
+| PATCH | `/api/sessions/{id}/position` | Выбрать текущее упражнение |
+| POST | `/api/sessions/{id}/finish` | Завершить и обновить рекорды |
+| POST | `/api/sessions/{id}/cancel` | Отменить с сохранением данных |
+| POST | `/api/sessions/{id}/repeat` | Повторить снимок завершённой тренировки |
+| GET | `/api/history?month=2026-09&page=0` | Завершённые тренировки за локальный месяц |
+| GET | `/api/exercises/{id}/history?page=0` | История упражнения |
+| GET | `/api/exercises/{id}/progress?period=quarter` | Прогресс и рекорды упражнения |
+| GET | `/api/analytics/{period}` | `week`, `month`, `quarter`, `year`; также `weekly`, `monthly`, `yearly` |
 
-Lists have fixed page sizes: 8 templates/catalog/history items or 5 exercise-history workouts. Start, repeat and set-recording requests require an `Idempotency-Key` header (1–100 characters). Reuse it for a network retry; use a new one for an intentional new action. A conflicting payload with the same key returns 409. Finish, cancel and undo are naturally idempotent. Template creation and custom-exercise creation do not use request idempotency keys.
+Размер страницы: 8 элементов для шаблонов, каталога и истории; 5 тренировок для истории упражнения. Начало, повтор тренировки и запись подхода требуют `Idempotency-Key` длиной 1–100 символов. Повторяйте ключ при сетевой повторной попытке; используйте новый для нового действия. Другие данные с прежним ключом дают 409. Завершение, отмена и отмена подхода идемпотентны. Создание шаблонов, CSV-импорт и создание упражнений не используют ключ идемпотентности.
 
-Example template body (obtain exercise IDs through `/api/exercises?q=Bench` first):
+Пример тела шаблона (ID упражнений получите через `/api/exercises?q=Bench`):
 
 ```json
 {
-  "name": "Push Day",
-  "description": "Chest and shoulders",
+  "name": "Грудь и плечи",
+  "description": "Силовая тренировка",
   "exercises": [
     {"exerciseId": 1, "sets": 3, "reps": 8, "weight": 70, "restSeconds": 90},
     {"exerciseId": 16, "sets": 3, "reps": 10, "weight": 20, "restSeconds": 60}
@@ -141,85 +197,103 @@ Example template body (obtain exercise IDs through `/api/exercises?q=Bench` firs
 }
 ```
 
-Start body: `{"templateId": 1}`. Record body: `{"sessionExerciseId": 1, "weight": 70, "repetitions": 8}`. Use the **session exercise ID returned by the started session**, not a catalog exercise ID. Settings body: `{"timezone":"Europe/Moscow"}`. API errors use Problem Detail responses without stack traces.
+Начало: `{"templateId":1}`. Подход: `{"sessionExerciseId":1,"weight":70,"repetitions":8}`. Здесь нужен **ID упражнения в начатой сессии**, а не ID из каталога.
 
-## Architecture
+Настройки: `PATCH /api/me` с `{"timezone":"Europe/Moscow","language":"ru"}`. Оба поля необязательны; пропущенное или `null` не меняет соответствующую настройку. Поддерживаются только `ru` и `en`. Ошибки API — Problem Detail без трассировок стека.
 
-The application is a modular monolith. Telegram handlers and REST controllers share transactional application services; calculations, validation and persistence do not live in the bot transport.
+Пример импорта через PowerShell с переменными окружения, заданными в текущей оболочке:
+
+```powershell
+curl.exe -X POST http://localhost:8080/api/workouts/import `
+  -H "X-Api-Key: $env:INTERNAL_API_KEY" `
+  -H "X-Telegram-User-Id: $env:TELEGRAM_USER_ID" `
+  -F "file=@docs/workout-example.csv;type=text/csv"
+```
+
+`TELEGRAM_USER_ID` в примере — ID заранее зарегистрированного пользователя. PowerShell сам не загружает `.env`. Импорт через API сохраняет шаблон сразу, без Telegram-экрана подтверждения.
+
+## Архитектура и надёжность
+
+Приложение — модульный монолит. Telegram и REST вызывают общие транзакционные сервисы; расчёты и запись данных не зависят от транспорта.
 
 ```text
-telegram/{bot,callback,handler,message}  Transport, durable UI, routing and screens
-workout/{domain,application,api}         Templates, sessions, sets and session rules
-exercise/{domain,application,api}        Global catalog and private custom exercises
-analytics/{domain,application,api}       Period read models and personal records
-user/{domain,application,api}            Telegram identity and settings
-common/{api}                           Validation, errors, API authentication, OpenAPI
+telegram/{bot,callback,handler,message}  Telegram, сохранённое состояние интерфейса, экраны
+workout/{domain,application,api}         Шаблоны, CSV, тренировки, подходы
+exercise/{domain,application,api}        Общий каталог и личные упражнения
+analytics/{domain,application,api}       Отчёты и рекорды
+user/{domain,application,api}            Профиль, язык и часовой пояс
+common/{api}                           Проверки, переводы, ошибки, авторизация, OpenAPI
 ```
 
-Spring Data repository interfaces persist aggregate roots. JPA owns transactional writes; analytics uses parameterized SQL projections to avoid materializing every historic set. `Clock` is injectable. API DTOs are separate from JPA entities. There are no AI services or unnecessary distributed components.
+Spring Data хранит агрегаты; JPA выполняет транзакционные изменения, аналитика использует параметризованные SQL-запросы. Часы `Clock` внедряются зависимостью. DTO API отделены от JPA-сущностей. Переводы находятся в `src/main/resources/i18n/ru.json`: переводятся только явно отмеченные строки приложения, пользовательский текст не изменяется. Языковой контекст ограничен обработкой одного Telegram-обновления и восстанавливается в `finally`.
 
-Reliability decisions:
+- Блокировка пользователя в БД последовательно выполняет его изменения из Telegram и REST. Частичный уникальный индекс запрещает две активные тренировки.
+- Сессия сохраняет снимок порядка, названий, типов и плана упражнений. Удаление шаблона мягкое; завершённую тренировку можно повторить после удаления шаблона.
+- Ключи запросов защищают начало, повтор и запись подходов от повторного выполнения. Отмена подхода помечает его недействительным, сохраняя ключ.
+- Кнопки содержат ревизию экрана. Устаревшая кнопка или кнопка другого сообщения не изменяет состояние.
+- Изменения данных, следующий polling offset, состояние ввода и экран фиксируются одной транзакцией. Ошибки БД оставляют обновление для повторной обработки.
+- Очередь исходящих экранов в PostgreSQL повторяет доставку без повторного выполнения действий. Удалённое сообщение заменяется новым. Ограничение частоты учитывает `retry_after`; URL с токеном не включается в транспортные исключения.
+- CSV и скачивание ограничены 64 КиБ. Telegram-файлы загружаются через `getFile` с ограничением времени и размера; токен не выводится в ошибки.
+- Hibernate только проверяет схему (`ddl-auto=validate`), изменения выполняет Flyway.
 
-- Per-user database locks serialize mutations across Telegram and REST. A PostgreSQL partial unique index is the final guard against multiple active workouts.
-- Session exercises snapshot the template's order, name, metric type and targets. Template deletion is soft; repeat can use a completed snapshot after its template is deleted.
-- Request keys make start/repeat and set recording retry-safe. Undo marks a set voided instead of deleting its idempotency record.
-- Each Telegram screen has a revision in its callback data. Buttons from older revisions or another message cannot mutate the current flow.
-- An update's business writes, next polling offset, flow state and pending screen commit in one transaction. Database errors leave the update unacknowledged for retry.
-- A PostgreSQL-backed screen outbox retries Telegram failures without repeating business writes. Message edits are preferred; a deleted/uneditable interface gets a replacement message. Rate limits honor `retry_after`. API URLs containing the bot token are excluded from transport exceptions.
-- No database schema is created by Hibernate: `ddl-auto=validate`; Flyway is authoritative.
+## База данных
 
-## Database
-
-| Table | Role |
+| Таблица | Назначение |
 | --- | --- |
-| `users` | Telegram identity, onboarding and timezone |
-| `exercises` | Seeded global catalog / user-owned custom exercises |
-| `workout_templates` | Reusable definitions with soft deletion |
-| `workout_template_exercises` | Ordered exercises and optional targets |
-| `workout_sessions` | ACTIVE / COMPLETED / CANCELLED, timing and request identity |
-| `workout_session_exercises` | Immutable template snapshots |
-| `exercise_sets` | Metrics, notes, RPE, request keys and undo tombstones |
-| `personal_records` | Strength records updated atomically on completion |
-| `bot_states` | Flow, draft JSON, screen revision, message identity, pending delivery |
-| `bot_cursor` | Next durable Telegram polling offset |
+| `users` | Telegram-профиль, язык, часовой пояс, прохождение приветствия |
+| `exercises` | Общий каталог и личные упражнения |
+| `workout_templates` | Шаблоны с мягким удалением |
+| `workout_template_exercises` | Порядок упражнений и плановые значения |
+| `workout_sessions` | Статусы ACTIVE / COMPLETED / CANCELLED, время, ключ запроса |
+| `workout_session_exercises` | Неизменяемый снимок упражнений |
+| `exercise_sets` | Показатели, RPE, заметки, ключи, признаки отмены |
+| `personal_records` | Рекорды, обновляемые при завершении |
+| `bot_states` | Текущий ввод, JSON-черновик, ревизия и доставка экрана |
+| `bot_cursor` | Следующий надёжно сохранённый polling offset |
 
-Versioned migrations live under `src/main/resources/db/migration`. The initial catalog contains 27 exercises across chest, back, legs, shoulders, arms, core and cardio, including the requested Bench Press and Shoulder Press. New migrations must be appended; do not edit migrations already applied to a real database.
+Миграции — `src/main/resources/db/migration`. В исходном каталоге 27 упражнений для груди, спины, ног, плеч, рук, кора и кардио, включая `Bench Press` и `Shoulder Press`. Добавляйте новые миграции; не редактируйте уже применённые в рабочей базе. Поле языка существовало в исходной схеме, поэтому для переключателя новая миграция не нужна.
 
-## Develop and test
+## Разработка и тестирование
 
-Install JDK 17+ and run Docker. The Maven wrapper downloads Maven 3.9.11 automatically.
+Установите JDK 17+ и запустите Docker. Maven Wrapper автоматически загружает Maven 3.9.11.
 
-```sh
-./mvnw test          # Unit, domain and Telegram HTTP-adapter tests
-./mvnw verify        # Also real PostgreSQL Testcontainers tests and formatting checks
-./mvnw spotless:apply
-# Windows: use .\mvnw.cmd in place of ./mvnw
+```powershell
+.\mvnw.cmd test             # Модульные тесты и HTTP-адаптер Telegram
+.\mvnw.cmd verify           # Также PostgreSQL Testcontainers и проверка форматирования
+.\mvnw.cmd spotless:apply   # Форматирование Java
 ```
 
-Integration tests require Docker and fail if it is unavailable; they are not silently skipped. They use temporary databases, never your Compose volume. CI runs `verify` on Ubuntu.
+В Linux/macOS замените `.\mvnw.cmd` на `./mvnw`. Интеграционные тесты требуют Docker и завершаются ошибкой, если он недоступен. Они используют временные базы, не рабочий том Compose. CI выполняет `verify` на Ubuntu.
 
-For a running Compose deployment, `powershell -File scripts/smoke-test.ps1 -Restart` exercises the REST workout loop and restarts the app to verify persistence. It creates and retains data under a new synthetic identity, without contacting Telegram. Omit `-Restart` to leave the app running throughout the check.
+Для запущенного Compose:
 
-The tests cover the exact Push Day scenario (three 70×8 sets and 20×10, 20×10, 20×8), 2,240 kg volume, previous performance, stale callbacks, concurrent duplicates, undo replay, ownership, all metric types, timezone boundaries, record detection, immutable snapshots, migrations, API authentication, OpenAPI, and recovery in a new Spring application context. The Telegram HTTP adapter is tested with a local fake Telegram server.
+```powershell
+powershell -File scripts/smoke-test.ps1 -Restart
+```
 
-For a local Java process, provide `SPRING_DATASOURCE_URL`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `INTERNAL_API_KEY`, and optionally the Telegram variables in the process environment, then run `./mvnw spring-boot:run`. Spring does not automatically load `.env`; Compose does. You can run a development database with the included override:
+Скрипт проверяет полный цикл REST-тренировки и сохранность данных после перезапуска. Он создаёт и оставляет данные под новым синтетическим ID, не обращаясь к реальному аккаунту Telegram. Без `-Restart` приложение не перезапускается.
+
+Тесты проверяют тренировку из трёх подходов 70×8 и подходов 20×10, 20×10, 20×8 (объём 2240 кг), предыдущие результаты, устаревшие кнопки, конкурирующие запросы, отмену, принадлежность данных пользователю, типы показателей, периоды и часовые пояса, рекорды, снимки, миграции, API и восстановление контекста. Дополнительно проверяются выбор и изоляция языка, CSV с кириллицей/кавычками/BOM, ограничения, откат импорта, приватность упражнений, импорт через REST и Telegram-черновик. HTTP-адаптер Telegram использует локальный поддельный сервер.
+
+Для запуска Java без контейнера задайте в окружении процесса `SPRING_DATASOURCE_URL`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `INTERNAL_API_KEY` и при необходимости переменные Telegram, затем выполните `.\mvnw.cmd spring-boot:run`. Spring **не загружает `.env` автоматически**, в отличие от Compose. Базу для разработки можно запустить так:
 
 ```sh
 docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d db
-# Local Java URL: jdbc:postgresql://localhost:5433/workout
 ```
 
-Structured ECS JSON logs go to stdout. Actuator supplies health and Prometheus metrics; `workout.telegram.updates` and `workout.telegram.errors` track transport activity. Do not enable HTTP wire logging when using a real bot token.
+URL локального подключения: `jdbc:postgresql://localhost:5433/workout`.
 
-## MVP boundaries
+Структурированные ECS JSON-логи выводятся в stdout. Actuator предоставляет health и Prometheus; счётчики `workout.telegram.updates` и `workout.telegram.errors` отражают работу транспорта. Не включайте логирование полных HTTP-запросов с рабочим токеном.
 
-- One polling application instance per bot/database; no webhook or multi-replica coordination. Disable/remove any existing Telegram webhook before using long polling. A 409 from Telegram generally means another consumer or webhook is active.
-- Live Telegram delivery requires your token and an outbound HTTPS connection. Automated tests do not contact a real Telegram account.
-- English UI and kg/km only; timezone is configurable. No calorie/nutrition tracking, AI coaching, social features, payments, wearables, or generated chart images.
-- Rest intervals are reference targets, not notifications/timers. There is no pause clock or editing of completed workouts.
-- Templates are user-created; the exercise catalog is seeded, but predefined workout programs are not.
-- Limits: 30 exercises/template, 100 live sets/exercise, 80-character names, 500-character notes/descriptions. Workout detail screens paginate sets; compact screens abbreviate long exercise names or show recent sets.
-- Initial message creation cannot be exactly-once across a crash between Telegram accepting `sendMessage` and saving its message ID. A rare duplicate interface message is possible; confirmed sets remain deduplicated.
-- UTC is the onboarding default. Identity rows are created on first contact to store the welcome screen; onboarding completes after Start is pressed.
+## Ограничения
 
-API and platform references: [Telegram Bot API](https://core.telegram.org/bots/api), [Spring Boot 3.5 requirements](https://docs.spring.io/spring-boot/3.5/system-requirements.html).
+- Один polling-процесс на бота/базу; webhook и несколько реплик не поддерживаются. Перед запуском отключите существующий webhook. Ошибка Telegram 409 обычно означает другой потребитель обновлений или активный webhook.
+- Для Telegram нужны токен и исходящее HTTPS-соединение. Автотесты не проверяют доставку в реальный аккаунт.
+- Нет подсчёта калорий, питания, ИИ-тренера, социальных функций, платежей, носимых устройств или графиков-картинок.
+- Отдых — справочное значение, без уведомлений и таймера. Нет таймера паузы и редактирования завершённых тренировок.
+- Готовых программ нет: шаблоны создаются вручную или импортируются; упражнения общего каталога предзаполнены.
+- До 30 упражнений в шаблоне, 100 действующих подходов на упражнение, 80 символов в названиях и 500 в заметках/описаниях. Длинные списки разбиваются на страницы.
+- Между успешным `sendMessage` и сохранением ID возможен сбой: при восстановлении изредка создаётся второе сообщение интерфейса. Подтверждённые подходы не дублируются.
+- Профиль создаётся при первом обращении; приветствие считается пройденным после кнопки «Начать».
+
+Первоисточники: [Telegram Bot API](https://core.telegram.org/bots/api), [требования Spring Boot 3.5](https://docs.spring.io/spring-boot/3.5/system-requirements.html).

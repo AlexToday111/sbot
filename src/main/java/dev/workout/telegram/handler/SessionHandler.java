@@ -1,5 +1,6 @@
 package dev.workout.telegram.handler;
 
+import static dev.workout.common.I18n.t;
 import static dev.workout.telegram.message.Screen.b;
 
 import dev.workout.common.*;
@@ -39,8 +40,9 @@ public class SessionHandler implements CallbackHandler {
       case "customweight" -> {
         c.flow(Flow.WEIGHT);
         yield Screen.title(
-                "Enter weight in kg\n\nExample: 70 or 72.5\nUse 0 for bodyweight without added weight.")
-            .button("← Workout", "session:view:" + c.data().sessionId)
+                t(
+                    "Enter weight in kg\n\nExample: 70 or 72.5\nUse 0 for bodyweight without added weight."))
+            .button(t("← Workout"), "session:view:" + c.data().sessionId)
             .home()
             .build();
       }
@@ -60,7 +62,7 @@ public class SessionHandler implements CallbackHandler {
         var s = sessions.get(c.uid(), Long.parseLong(p[2]));
         var e = find(s, Long.parseLong(p[3]));
         var last = last(c, e);
-        if (last == null) throw new DomainException("No previous set available.");
+        if (last == null) throw new DomainException(t("No previous set available."));
         c.data().sessionId = s.id();
         c.data().sessionExerciseId = e.id();
         yield save(
@@ -77,9 +79,10 @@ public class SessionHandler implements CallbackHandler {
       case "undo" -> view(c, sessions.undo(c.uid(), Long.parseLong(p[2]), Long.parseLong(p[3])));
       case "finishask" ->
           Screen.title(
-                  "Finish this workout?\n\nEvery recorded set is already saved. Finishing adds it to history and updates records.")
-              .button("✓ Finish workout", "session:finish:" + p[2])
-              .button("← Continue", "session:view:" + p[2])
+                  t(
+                      "Finish this workout?\n\nEvery recorded set is already saved. Finishing adds it to history and updates records."))
+              .button(t("✓ Finish workout"), "session:finish:" + p[2])
+              .button(t("← Continue"), "session:view:" + p[2])
               .home()
               .build();
       case "finish" -> {
@@ -88,17 +91,18 @@ public class SessionHandler implements CallbackHandler {
       }
       case "cancelask" ->
           Screen.title(
-                  "Cancel this workout?\n\nIts saved data is retained, but it will be excluded from progress and completed history.")
-              .button("Cancel workout", "session:cancel:" + p[2])
-              .button("← Continue", "session:view:" + p[2])
+                  t(
+                      "Cancel this workout?\n\nIts saved data is retained, but it will be excluded from progress and completed history."))
+              .button(t("Cancel workout"), "session:cancel:" + p[2])
+              .button(t("← Continue"), "session:view:" + p[2])
               .home()
               .build();
       case "cancel" -> {
         sessions.cancel(c.uid(), Long.parseLong(p[2]));
         c.flow(Flow.HOME);
-        yield Screen.title("Workout cancelled.\nRecorded data is retained.").home().build();
+        yield Screen.title(t("Workout cancelled.\nRecorded data is retained.")).home().build();
       }
-      default -> throw new DomainException("Unknown session action.");
+      default -> throw new DomainException(t("Unknown session action."));
     };
   }
 
@@ -112,7 +116,7 @@ public class SessionHandler implements CallbackHandler {
         Screen.title(
             "🔥 "
                 + s.name()
-                + "\n\nExercise "
+                + t("\n\nExercise ")
                 + (e.position() + 1)
                 + " / "
                 + s.exercises().size()
@@ -120,44 +124,44 @@ public class SessionHandler implements CallbackHandler {
                 + e.name());
     if (e.targetSets() != null || e.targetReps() != null || e.targetWeight() != null)
       screen.line(
-          "\nTarget: "
+          t("\nTarget: ")
               + (e.targetSets() == null ? "–" : e.targetSets())
-              + " sets × "
+              + t(" sets × ")
               + (e.targetReps() == null ? "–" : e.targetReps())
-              + " reps"
-              + (e.targetWeight() == null ? "" : " @ " + Format.n(e.targetWeight()) + " kg"));
-    if (e.restSeconds() != null) screen.line("Rest: " + e.restSeconds() + " seconds");
+              + t(" reps")
+              + (e.targetWeight() == null ? "" : " @ " + Format.n(e.targetWeight()) + t(" kg")));
+    if (e.restSeconds() != null) screen.line(t("Rest: ") + e.restSeconds() + t(" seconds"));
     var previous = previous(c, e);
-    screen.line("\nLast workout:");
-    if (previous.isEmpty()) screen.line("No previous performance yet.");
+    screen.line(t("\nLast workout:"));
+    if (previous.isEmpty()) screen.line(t("No previous performance yet."));
     else {
       previous.stream().limit(6).forEach(x -> screen.line(Format.set(x)));
-      if (previous.size() > 6) screen.line("… " + previous.size() + " sets total");
+      if (previous.size() > 6) screen.line("… " + previous.size() + t(" sets total"));
     }
-    screen.line("\nCurrent workout:");
-    if (e.sets().isEmpty()) screen.line("No sets recorded.");
+    screen.line(t("\nCurrent workout:"));
+    if (e.sets().isEmpty()) screen.line(t("No sets recorded."));
     else {
       int start = Math.max(0, e.sets().size() - 8);
-      if (start > 0) screen.line("Showing latest 8 of " + e.sets().size() + " sets");
+      if (start > 0) screen.line(t("Showing latest 8 of ") + e.sets().size() + t(" sets"));
       e.sets()
           .subList(start, e.sets().size())
           .forEach(x -> screen.line(x.number() + ". " + Format.set(x)));
     }
-    screen.button("+ Add set", "session:add:" + s.id() + ":" + e.id());
+    screen.button(t("+ Add set"), "session:add:" + s.id() + ":" + e.id());
     var last = last(c, e);
     if (last != null)
-      screen.button("Repeat " + Format.set(last), "session:same:" + s.id() + ":" + e.id());
+      screen.button(t("Repeat ") + Format.set(last), "session:same:" + s.id() + ":" + e.id());
     if (!e.sets().isEmpty())
       screen.button(
-          "↶ Undo last set",
+          t("↶ Undo last set"),
           "session:undo:" + s.id() + ":" + e.sets().get(e.sets().size() - 1).id());
     if (e.position() > 0)
-      screen.button("← Previous exercise", "session:nav:" + s.id() + ":" + (e.position() - 1));
+      screen.button(t("← Previous exercise"), "session:nav:" + s.id() + ":" + (e.position() - 1));
     if (e.position() + 1 < s.exercises().size())
-      screen.button("Next exercise →", "session:nav:" + s.id() + ":" + (e.position() + 1));
+      screen.button(t("Next exercise →"), "session:nav:" + s.id() + ":" + (e.position() + 1));
     return screen
-        .button("Finish workout", "session:finishask:" + s.id())
-        .button("Cancel workout", "session:cancelask:" + s.id())
+        .button(t("Finish workout"), "session:finishask:" + s.id())
+        .button(t("Cancel workout"), "session:cancelask:" + s.id())
         .home()
         .build();
   }
@@ -180,22 +184,22 @@ public class SessionHandler implements CallbackHandler {
     options.add(weight);
     options.add(weight.add(new BigDecimal("2.5")).min(new BigDecimal("2000")));
     var screen =
-        Screen.title(e.name() + "\n\nWeight (kg)\nChoose a value, or type a custom weight.");
+        Screen.title(e.name() + t("\n\nWeight (kg)\nChoose a value, or type a custom weight."));
     screen.row(
         options.stream()
             .map(w -> b(Format.n(w), "session:weight:" + Format.n(w)))
             .toArray(Screen.Button[]::new));
     return screen
-        .button("Custom weight", "session:customweight")
-        .button("Enter full set / RPE / notes", "session:manual")
-        .button("← Workout", "session:view:" + sid)
+        .button(t("Custom weight"), "session:customweight")
+        .button(t("Enter full set / RPE / notes"), "session:manual")
+        .button(t("← Workout"), "session:view:" + sid)
         .home()
         .build();
   }
 
   private Screen reps(Interaction c) {
-    Checks.range(c.data().weight, 0, 2000, "Weight");
-    Checks.scale(c.data().weight, 3, "Weight");
+    Checks.range(c.data().weight, 0, 2000, t("Weight"));
+    Checks.scale(c.data().weight, 3, t("Weight"));
     c.flow(Flow.REPS);
     var e = find(sessions.get(c.uid(), c.data().sessionId), c.data().sessionExerciseId);
     var last = last(c, e);
@@ -210,13 +214,13 @@ public class SessionHandler implements CallbackHandler {
             e.name()
                 + "\n\n"
                 + Format.n(c.data().weight)
-                + " kg\nRepetitions — tap to save, or type a number.")
+                + t(" kg\nRepetitions — tap to save, or type a number."))
         .row(
             options.stream()
                 .map(r -> b(r.toString(), "session:reps:" + r))
                 .toArray(Screen.Button[]::new))
-        .button("Enter full set / RPE / notes", "session:manual")
-        .button("← Workout", "session:view:" + c.data().sessionId)
+        .button(t("Enter full set / RPE / notes"), "session:manual")
+        .button(t("← Workout"), "session:view:" + c.data().sessionId)
         .home()
         .build();
   }
@@ -226,17 +230,18 @@ public class SessionHandler implements CallbackHandler {
     var e = find(sessions.get(c.uid(), c.data().sessionId), c.data().sessionExerciseId);
     String help =
         switch (e.metricType()) {
-          case STRENGTH -> "weight_kg reps\nExample: 70 8";
-          case BODYWEIGHT -> "reps [added_weight_kg]\nExample: 12 or 12 5";
-          case CARDIO -> "duration_seconds distance_km\nExample: 1800 5";
-          case TIMED -> "duration_seconds\nExample: 60";
+          case STRENGTH -> t("weight_kg reps\nExample: 70 8");
+          case BODYWEIGHT -> t("reps [added_weight_kg]\nExample: 12 or 12 5");
+          case CARDIO -> t("duration_seconds distance_km\nExample: 1800 5");
+          case TIMED -> t("duration_seconds\nExample: 60");
         };
     return Screen.title(
             e.name()
-                + "\n\nEnter "
+                + t("\n\nEnter ")
                 + help
-                + "\n\nOptional: append | RPE | notes\nExample suffix: | 8 | Felt strong\nUse - to omit RPE.\nYour message saves the set.")
-        .button("← Workout", "session:view:" + c.data().sessionId)
+                + t(
+                    "\n\nOptional: append | RPE | notes\nExample suffix: | 8 | Felt strong\nUse - to omit RPE.\nYour message saves the set."))
+        .button(t("← Workout"), "session:view:" + c.data().sessionId)
         .home()
         .build();
   }
@@ -263,7 +268,7 @@ public class SessionHandler implements CallbackHandler {
               null));
     var e = find(sessions.get(c.uid(), c.data().sessionId), c.data().sessionExerciseId);
     String[] parts = text.split("\\|", -1);
-    if (parts.length > 3) throw new DomainException("Use metrics | RPE | notes.");
+    if (parts.length > 3) throw new DomainException(t("Use metrics | RPE | notes."));
     String[] values = parts[0].trim().split("\\s+");
     BigDecimal weight = null, distance = null;
     Integer reps = null, duration = null;
@@ -310,7 +315,7 @@ public class SessionHandler implements CallbackHandler {
 
   private void count(String[] a, int min, int max) {
     if (a.length < min || a.length > max)
-      throw new DomainException("Check the metric format shown above and try again.");
+      throw new DomainException(t("Check the metric format shown above and try again."));
   }
 
   private ExerciseView find(SessionView s, long id) {

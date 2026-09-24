@@ -24,10 +24,16 @@ public class ApiErrors {
     MethodArgumentTypeMismatchException.class,
     MissingRequestHeaderException.class,
     MissingServletRequestParameterException.class,
+    org.springframework.web.multipart.support.MissingServletRequestPartException.class,
     MethodArgumentNotValidException.class
   })
   ResponseEntity<ProblemDetail> invalid(Exception ex) {
     return problem(400, "Invalid request. Check the documented fields and value formats.");
+  }
+
+  @ExceptionHandler(org.springframework.web.multipart.MaxUploadSizeExceededException.class)
+  ResponseEntity<ProblemDetail> uploadTooLarge(Exception ex) {
+    return problem(413, "CSV must be at most 64 KiB.");
   }
 
   @ExceptionHandler(DataIntegrityViolationException.class)

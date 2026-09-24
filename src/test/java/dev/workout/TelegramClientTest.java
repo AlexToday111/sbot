@@ -51,6 +51,36 @@ class TelegramClientTest {
   }
 
   @Test
+  void downloadsCsvThroughGetFileAndRejectsOversizedBody() throws Exception {
+    var document =
+        new ObjectMapper().readTree("{\"file_id\":\"abc\",\"file_name\":\"workout.csv\"}");
+    responses.add("{\"ok\":true,\"result\":{\"file_path\":\"documents/file.csv\"}}");
+    responses.add("workout,exercise\nДень,Жим\n");
+    assertThat(new String(client().downloadCsv(document), StandardCharsets.UTF_8))
+        .contains("День,Жим");
+    assertThat(methods)
+        .containsExactly("/bottest-secret/getFile", "/file/bottest-secret/documents/file.csv");
+    responses.add("{\"ok\":true,\"result\":{\"file_path\":\"documents/file.csv\"}}");
+    responses.add("x".repeat(65537));
+    assertThatThrownBy(() -> client().downloadCsv(document))
+        .isInstanceOf(dev.workout.common.DomainException.class);
+  }
+
+  @Test
+  void rejectsWrongFileTypeAndUnsafeDownloadPath() throws Exception {
+    var mapper = new ObjectMapper();
+    assertThatThrownBy(() -> client().downloadCsv(mapper.readTree("{\"file_name\":\"a.exe\"}")))
+        .isInstanceOf(dev.workout.common.DomainException.class);
+    responses.add("{\"ok\":true,\"result\":{\"file_path\":\"../secret.csv\"}}");
+    assertThatThrownBy(
+            () ->
+                client()
+                    .downloadCsv(mapper.readTree("{\"file_id\":\"abc\",\"file_name\":\"a.csv\"}")))
+        .isInstanceOf(TelegramClient.ApiException.class);
+    assertThat(methods).hasSize(1);
+  }
+
+  @Test
   void editsExistingMessageAndVersionsButtonsWithoutHtmlParsing() throws Exception {
     responses.add("{\"ok\":true,\"result\":{\"message_id\":10}}");
     assertThat(client().deliver(1, 10L, 7, screen())).isEqualTo(10);

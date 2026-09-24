@@ -1,5 +1,7 @@
 package dev.workout.telegram.message;
 
+import static dev.workout.common.I18n.t;
+
 import dev.workout.workout.application.WorkoutDtos.*;
 import java.time.ZoneId;
 
@@ -10,8 +12,8 @@ public final class SessionScreens {
     var b =
         Screen.title(
             ("COMPLETED".equals(s.status())
-                    ? "✓ Workout completed"
-                    : "Workout " + s.status().toLowerCase())
+                    ? t("✓ Workout completed")
+                    : t("Workout ") + t(s.status().toLowerCase(java.util.Locale.ROOT)))
                 + "\n\n"
                 + s.name()
                 + "\n\n"
@@ -28,12 +30,12 @@ public final class SessionScreens {
             e.name()
                 + ": "
                 + e.sets().size()
-                + " sets"
-                + (volume == null ? "" : " · " + Format.n(volume) + " kg"));
+                + t(" sets")
+                + (volume == null ? "" : " · " + Format.n(volume) + t(" kg")));
       }
-    b.button("View all sets", "history:detail:" + s.id() + ":0:0")
-        .button("▥ View progress", "progress:menu");
-    if ("COMPLETED".equals(s.status())) b.button("↻ Repeat workout", "session:repeat:" + s.id());
+    b.button(t("View all sets"), "history:detail:" + s.id() + ":0:0")
+        .button(t("▥ View progress"), "progress:menu");
+    if ("COMPLETED".equals(s.status())) b.button(t("↻ Repeat workout"), "session:repeat:" + s.id());
     return b.home().build();
   }
 
@@ -63,18 +65,18 @@ public final class SessionScreens {
               + (set.notes() == null
                   ? ""
                   : "\n   " + set.notes().substring(0, Math.min(120, set.notes().length()))));
-    if (e.sets().isEmpty()) b.line("No sets recorded.");
+    if (e.sets().isEmpty()) b.line(t("No sets recorded."));
     if (page > 0)
-      b.button("← Earlier sets", "history:detail:" + s.id() + ":" + index + ":" + (page - 1));
+      b.button(t("← Earlier sets"), "history:detail:" + s.id() + ":" + index + ":" + (page - 1));
     if (to < e.sets().size())
-      b.button("More sets →", "history:detail:" + s.id() + ":" + index + ":" + (page + 1));
+      b.button(t("More sets →"), "history:detail:" + s.id() + ":" + index + ":" + (page + 1));
     if (index > 0)
-      b.button("← Previous exercise", "history:detail:" + s.id() + ":" + (index - 1) + ":0");
+      b.button(t("← Previous exercise"), "history:detail:" + s.id() + ":" + (index - 1) + ":0");
     if (index + 1 < s.exercises().size())
-      b.button("Next exercise →", "history:detail:" + s.id() + ":" + (index + 1) + ":0");
-    return b.button("Exercise progress", "progress:exercise:" + e.exerciseId() + ":quarter")
-        .button("Summary", "history:summary:" + s.id())
-        .button("← History", "history:current")
+      b.button(t("Next exercise →"), "history:detail:" + s.id() + ":" + (index + 1) + ":0");
+    return b.button(t("Exercise progress"), "progress:exercise:" + e.exerciseId() + ":quarter")
+        .button(t("Summary"), "history:summary:" + s.id())
+        .button(t("← History"), "history:current")
         .home()
         .build();
   }

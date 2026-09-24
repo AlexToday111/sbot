@@ -11,8 +11,10 @@ import org.springframework.web.bind.annotation.*;
 public class WorkoutController {
   private final TemplateService templates;
   private final UserService users;
+  private final CsvImportService imports;
 
-  public WorkoutController(TemplateService t, UserService u) {
+  public WorkoutController(TemplateService t, UserService u, CsvImportService imports) {
+    this.imports = imports;
     templates = t;
     users = u;
   }
@@ -26,6 +28,19 @@ public class WorkoutController {
   @PostMapping
   public TemplateView create(@RequestAttribute long telegramId, @RequestBody TemplateInput input) {
     return templates.save(uid(telegramId), null, input);
+  }
+
+  @PostMapping(value = "/import", consumes = "multipart/form-data")
+  public TemplateView importCsv(
+      @RequestAttribute long telegramId,
+      @RequestParam("file") org.springframework.web.multipart.MultipartFile file)
+      throws java.io.IOException {
+    if (file.getOriginalFilename() == null
+        || !file.getOriginalFilename().toLowerCase(Locale.ROOT).endsWith(".csv"))
+      throw new dev.workout.common.DomainException("Send a .csv file as a document.");
+    if (file.getSize() > WorkoutCsv.MAX_BYTES)
+      throw new dev.workout.common.DomainException("CSV must be at most 64 KiB.");
+    return imports.save(uid(telegramId), file.getBytes());
   }
 
   @GetMapping("/{id}")

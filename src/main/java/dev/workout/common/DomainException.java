@@ -8,7 +8,7 @@ public class DomainException extends RuntimeException {
   }
 
   public DomainException(int status, String message) {
-    super(message);
+    super(I18n.t(message));
     this.status = status;
   }
 

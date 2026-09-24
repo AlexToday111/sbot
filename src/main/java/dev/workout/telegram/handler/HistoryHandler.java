@@ -1,5 +1,7 @@
 package dev.workout.telegram.handler;
 
+import static dev.workout.common.I18n.t;
+
 import dev.workout.common.*;
 import dev.workout.telegram.callback.CallbackHandler;
 import dev.workout.telegram.message.*;
@@ -33,14 +35,14 @@ public class HistoryHandler implements CallbackHandler {
               ZoneId.of(c.user().timezone),
               Integer.parseInt(p[3]),
               Integer.parseInt(p[4]));
-      default -> throw new DomainException("Unknown history action.");
+      default -> throw new DomainException(t("Unknown history action."));
     };
   }
 
   private Screen month(Interaction c, YearMonth month, int page) {
     var items = sessions.history(c.uid(), month, page);
-    var b = Screen.title("◷ Workout history\n\n" + month);
-    if (items.isEmpty()) b.line("No completed workouts in this page.");
+    var b = Screen.title(t("◷ Workout history\n\n") + month);
+    if (items.isEmpty()) b.line(t("No completed workouts in this page."));
     items.forEach(
         s ->
             b.button(
@@ -48,10 +50,10 @@ public class HistoryHandler implements CallbackHandler {
                     + " · "
                     + s.name(),
                 "history:summary:" + s.id()));
-    if (page > 0) b.button("← Previous page", "history:month:" + month + ":" + (page - 1));
-    if (items.size() == 8) b.button("Next page →", "history:month:" + month + ":" + (page + 1));
-    return b.button("← Previous month", "history:month:" + month.minusMonths(1) + ":0")
-        .button("Next month →", "history:month:" + month.plusMonths(1) + ":0")
+    if (page > 0) b.button(t("← Previous page"), "history:month:" + month + ":" + (page - 1));
+    if (items.size() == 8) b.button(t("Next page →"), "history:month:" + month + ":" + (page + 1));
+    return b.button(t("← Previous month"), "history:month:" + month.minusMonths(1) + ":0")
+        .button(t("Next month →"), "history:month:" + month.plusMonths(1) + ":0")
         .home()
         .build();
   }

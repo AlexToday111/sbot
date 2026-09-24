@@ -65,6 +65,22 @@ public class UserService {
     return u;
   }
 
+  public User language(long id, String language) {
+    if (!java.util.Set.of("ru", "en").contains(language == null ? "" : language))
+      throw new DomainException("Choose Russian or English.");
+    User u = lock(id);
+    u.language = language;
+    u.updatedAt = clock.instant();
+    return u;
+  }
+
+  public User settings(long id, String timezone, String language) {
+    User u = lock(id);
+    if (timezone != null) settings(id, timezone);
+    if (language != null) language(id, language);
+    return u;
+  }
+
   public void onboard(long id) {
     User u = lock(id);
     u.onboarded = true;

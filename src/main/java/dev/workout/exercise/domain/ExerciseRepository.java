@@ -11,4 +11,8 @@ public interface ExerciseRepository extends JpaRepository<Exercise, Long> {
   List<Exercise> search(@Param("uid") long uid, @Param("q") String q, Pageable page);
 
   boolean existsByUserIdAndNameIgnoreCase(Long userId, String name);
+
+  @Query(
+      "select e from Exercise e where (e.userId is null or e.userId = :uid) and lower(e.name) = lower(:name) order by e.id")
+  List<Exercise> exact(@Param("uid") long uid, @Param("name") String name);
 }

@@ -1,5 +1,7 @@
 package dev.workout.telegram.handler;
 
+import static dev.workout.common.I18n.t;
+
 import dev.workout.analytics.application.AnalyticsService;
 import dev.workout.telegram.callback.CallbackHandler;
 import dev.workout.telegram.message.*;
@@ -28,8 +30,9 @@ public class MenuHandler implements CallbackHandler {
 
   public Screen welcome() {
     return Screen.title(
-            "🏋 Workout Tracker\n\nPlan your training.\nTrack every set.\nSee your progress.")
-        .button("Start", "menu:onboard")
+            t("🏋 Workout Tracker\n\nPlan your training.\nTrack every set.\nSee your progress."))
+        .button(t("Start"), "menu:onboard")
+        .button("Русский / English", "menu:language")
         .build();
   }
 
@@ -40,30 +43,30 @@ public class MenuHandler implements CallbackHandler {
     var week = analytics.report(c.uid(), "week").current();
     var b =
         Screen.title(
-                "🏋 TRAINING\n\nToday\n"
+                t("🏋 TRAINING\n\nToday\n")
                     + (totals.workouts() == 0
-                        ? "No workout completed yet."
-                        : totals.workouts() + " workout(s) completed."))
+                        ? t("No workout completed yet.")
+                        : totals.workouts() + t(" workout(s) completed.")))
             .line(
-                "\nThis week\n"
+                t("\nThis week\n")
                     + week.workouts()
-                    + " workouts · "
+                    + t(" workouts · ")
                     + week.exercises()
-                    + " exercises · "
+                    + t(" exercises · ")
                     + week.sets()
-                    + " sets");
+                    + t(" sets"));
     sessions
         .active(c.uid())
         .ifPresent(
             s ->
-                b.line("\nActive: " + s.name())
-                    .button("▶ Continue workout", "session:view:" + s.id()));
-    if (c.data().name != null) b.button("Continue template draft", "workout:draft");
-    return b.button("▶ Start workout", "workout:list:0")
-        .button("☷ Workouts", "workout:list:0")
-        .button("▥ Progress", "progress:menu")
-        .button("◷ History", "history:month:" + YearMonth.from(today) + ":0")
-        .button("⚙ Settings", "menu:settings")
+                b.line(t("\nActive: ") + s.name())
+                    .button(t("▶ Continue workout"), "session:view:" + s.id()));
+    if (c.data().name != null) b.button(t("Continue template draft"), "workout:draft");
+    return b.button(t("▶ Start workout"), "workout:list:0")
+        .button(t("☷ Workouts"), "workout:list:0")
+        .button(t("▥ Progress"), "progress:menu")
+        .button(t("◷ History"), "history:month:" + YearMonth.from(today) + ":0")
+        .button(t("⚙ Settings"), "menu:settings")
         .build();
   }
 
@@ -74,14 +77,14 @@ public class MenuHandler implements CallbackHandler {
     var s = active.get();
     c.flow(Flow.HOME);
     return Screen.title(
-            "You have an active workout:\n\n"
+            t("You have an active workout:\n\n")
                 + s.name()
-                + "\nStarted "
+                + t("\nStarted ")
                 + Format.duration(Duration.between(s.startedAt(), clock.instant()).getSeconds())
-                + " ago.")
-        .button("▶ Continue workout", "session:view:" + s.id())
-        .button("Finish workout", "session:finishask:" + s.id())
-        .button("Cancel workout", "session:cancelask:" + s.id())
+                + t(" ago."))
+        .button(t("▶ Continue workout"), "session:view:" + s.id())
+        .button(t("Finish workout"), "session:finishask:" + s.id())
+        .button(t("Cancel workout"), "session:cancelask:" + s.id())
         .home()
         .build();
   }
@@ -94,23 +97,38 @@ public class MenuHandler implements CallbackHandler {
       }
       case "home" -> home(c);
       case "settings" -> settings(c);
+      case "language" ->
+          Screen.title("Выберите язык / Choose language")
+              .button("Русский", "menu:setlanguage:ru")
+              .button("English", "menu:setlanguage:en")
+              .build();
+      case "setlanguage" -> {
+        users.language(c.uid(), p[2]);
+        dev.workout.common.I18n.language(p[2]);
+        yield c.user().onboarded ? settings(c) : welcome();
+      }
       case "timezone" -> {
         c.flow(Flow.TIMEZONE);
         yield Screen.title(
-                "Enter your timezone\n\nFor example: Europe/Moscow, Europe/London, America/New_York or UTC.\n\nThis controls calendar periods and workout dates.")
-            .button("← Settings", "menu:settings")
+                t(
+                    "Enter your timezone\n\nFor example: Europe/Moscow, Europe/London, America/New_York or UTC.\n\nThis controls calendar periods and workout dates."))
+            .button(t("← Settings"), "menu:settings")
             .home()
             .build();
       }
-      default -> throw new dev.workout.common.DomainException("Unknown menu action.");
+      default -> throw new dev.workout.common.DomainException(t("Unknown menu action."));
     };
   }
 
   private Screen settings(Interaction c) {
     c.flow(Flow.HOME);
     return Screen.title(
-            "⚙ Settings\n\nTimezone: " + c.user().timezone + "\nUnits: kg · km\nLanguage: English")
-        .button("Change timezone", "menu:timezone")
+            t("⚙ Settings\n\nTimezone: ")
+                + c.user().timezone
+                + t("\nUnits: kg · km\nLanguage: ")
+                + ("ru".equals(c.user().language) ? "Русский" : "English"))
+        .button(t("Change timezone"), "menu:timezone")
+        .button("Русский / English", "menu:language")
         .home()
         .build();
   }
