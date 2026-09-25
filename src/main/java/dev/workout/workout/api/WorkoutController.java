@@ -33,14 +33,20 @@ public class WorkoutController {
   @PostMapping(value = "/import", consumes = "multipart/form-data")
   public TemplateView importCsv(
       @RequestAttribute long telegramId,
-      @RequestParam("file") org.springframework.web.multipart.MultipartFile file)
+      @RequestParam("file") org.springframework.web.multipart.MultipartFile file,
+      @RequestParam(required = false) Long replaceId,
+      @RequestParam(defaultValue = "false") boolean allowDuplicate)
       throws java.io.IOException {
     if (file.getOriginalFilename() == null
         || !file.getOriginalFilename().toLowerCase(Locale.ROOT).endsWith(".csv"))
       throw new dev.workout.common.DomainException("Send a .csv file as a document.");
     if (file.getSize() > WorkoutCsv.MAX_BYTES)
       throw new dev.workout.common.DomainException("CSV must be at most 64 KiB.");
-    return imports.save(uid(telegramId), file.getBytes());
+    return imports.save(
+        uid(telegramId),
+        imports.preview(uid(telegramId), file.getBytes()),
+        replaceId,
+        allowDuplicate);
   }
 
   @GetMapping("/{id}")

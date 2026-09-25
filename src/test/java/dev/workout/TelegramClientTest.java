@@ -36,6 +36,7 @@ class TelegramClientTest {
   @AfterEach
   void stop() {
     server.stop(0);
+    org.springframework.context.i18n.LocaleContextHolder.resetLocaleContext();
   }
 
   TelegramClient client() {
@@ -48,6 +49,26 @@ class TelegramClientTest {
 
   Screen screen() {
     return Screen.title("Bench <Press> & reps").button("Add set", "session:add:1:2").home().build();
+  }
+
+  @Test
+  void exportsUtf8HistoryAsDocumentWithVersionedButtons() {
+    responses.add("{\"ok\":true,\"result\":{\"message_id\":30}}");
+    responses.add("{\"ok\":true,\"result\":true}");
+    var screen =
+        Screen.title("История")
+            .attachment(new Screen.Attachment("history-2026-01.csv", "session,workout\n1,Грудь\n"))
+            .home()
+            .build();
+    assertThat(client().deliver(1, 20L, 9, screen)).isEqualTo(30);
+    assertThat(methods)
+        .containsExactly("/bottest-secret/sendDocument", "/bottest-secret/deleteMessage");
+    assertThat(bodies.get(0))
+        .contains(
+            "Content-Type: text/csv; charset=utf-8",
+            "filename=\"history-2026-01.csv\"",
+            "Грудь",
+            "9|menu:home");
   }
 
   @Test
@@ -121,5 +142,59 @@ class TelegramClientTest {
               assertThat(e.getMessage()).doesNotContain("test-secret");
               assertThat(e.getCause()).isNull();
             });
+  }
+
+  Screen chartScreen() {
+    return Screen.title("Progress <literal>")
+        .chart(ProgressChartsTest.sample())
+        .primary("Month", "progress:period:month")
+        .build();
+  }
+
+  @Test
+  void uploadsChartAndEditsExistingTextOrPhotoWithVersionedStyledButtons() {
+    responses.add("{\"ok\":true,\"result\":{\"message_id\":20}}");
+    assertThat(client().deliver(1, null, 7, chartScreen())).isEqualTo(20);
+    assertThat(methods.get(0)).endsWith("/sendPhoto");
+    assertThat(bodies.get(0))
+        .contains(
+            "Content-Type: image/png",
+            "attach://chart",
+            "7|progress:period:month",
+            "\"style\":\"primary\"",
+            "Progress <literal>");
+    responses.add("{\"ok\":true,\"result\":{\"message_id\":20}}");
+    assertThat(client().deliver(1, 20L, 8, chartScreen())).isEqualTo(20);
+    assertThat(methods.get(1)).endsWith("/editMessageMedia");
+    assertThat(bodies.get(1)).contains("\"type\":\"photo\"", "8|progress:period:month");
+  }
+
+  @Test
+  void returningFromChartSendsTextBeforeRemovingOldPhoto() {
+    responses.add(
+        "{\"ok\":false,\"error_code\":400,\"description\":\"Bad Request: there is no text in the message to edit\"}");
+    responses.add("{\"ok\":true,\"result\":{\"message_id\":21}}");
+    responses.add(
+        "{\"ok\":false,\"error_code\":400,\"description\":\"message cannot be deleted\"}");
+    assertThat(client().deliver(1, 20L, 9, screen())).isEqualTo(21);
+    assertThat(methods)
+        .containsExactly(
+            "/bottest-secret/editMessageText",
+            "/bottest-secret/sendMessage",
+            "/bottest-secret/deleteMessage");
+  }
+
+  @Test
+  void chartRetriesRateLimitsAndRecreatesDeletedPhoto() {
+    responses.add("{\"ok\":false,\"error_code\":429,\"parameters\":{\"retry_after\":12}}");
+    assertThatThrownBy(() -> client().deliver(1, 20L, 9, chartScreen()))
+        .isInstanceOfSatisfying(
+            TelegramClient.ApiException.class, e -> assertThat(e.retryAfter).isEqualTo(12));
+    assertThat(methods).hasSize(1);
+    responses.add(
+        "{\"ok\":false,\"error_code\":400,\"description\":\"message to edit not found\"}");
+    responses.add("{\"ok\":true,\"result\":{\"message_id\":22}}");
+    assertThat(client().deliver(1, 20L, 9, chartScreen())).isEqualTo(22);
+    assertThat(methods.get(2)).endsWith("/sendPhoto");
   }
 }

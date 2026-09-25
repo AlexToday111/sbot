@@ -39,6 +39,15 @@ public class WorkoutSession {
 
   public String notes;
 
+  @Column(name = "paused_at")
+  public Instant pausedAt;
+
+  @Column(name = "paused_seconds")
+  public long pausedSeconds;
+
+  @Column(name = "rest_until")
+  public Instant restUntil;
+
   @Column(name = "current_position")
   public int currentPosition;
 

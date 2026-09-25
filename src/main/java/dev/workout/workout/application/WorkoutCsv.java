@@ -19,31 +19,23 @@ public final class WorkoutCsv {
       Integer sets,
       Integer reps,
       BigDecimal weight,
-      Integer rest) {}
+      Integer rest,
+      Integer durationSeconds,
+      BigDecimal distance,
+      List<WorkoutDtos.SetPlan> plan) {}
 
   public record Parsed(String name, List<Row> rows) {}
 
   private WorkoutCsv() {}
 
   public static Parsed parse(byte[] bytes) {
-    if (bytes.length > MAX_BYTES) throw new DomainException("CSV must be at most 64 KiB.");
-    String text;
-    try {
-      text =
-          StandardCharsets.UTF_8
-              .newDecoder()
-              .onMalformedInput(CodingErrorAction.REPORT)
-              .decode(ByteBuffer.wrap(bytes))
-              .toString();
-    } catch (CharacterCodingException ex) {
-      throw new DomainException("Save the CSV file as UTF-8.");
-    }
-    if (text.startsWith("\uFEFF")) text = text.substring(1);
-    char delimiter = text.lines().findFirst().orElse("").contains(";") ? ';' : ',';
-    var records = records(text, delimiter);
-    if (records.isEmpty() || !records.get(0).equals(HEADER))
+    var records = table(bytes);
+    var extended = new ArrayList<>(HEADER);
+    extended.addAll(List.of("duration_seconds", "distance", "set_plan"));
+    if (records.isEmpty() || !(records.get(0).equals(HEADER) || records.get(0).equals(extended)))
       throw new DomainException(
-          "CSV header must be: workout,exercise,metric_type,sets,reps,weight,rest_seconds");
+          "CSV header must have 7 base columns, or all 10 extended columns in the documented order.");
+    int columns = records.get(0).size();
     if (records.size() < 2 || records.size() > 31)
       throw new DomainException("A workout needs 1 to 30 exercises.");
     String name = null;
@@ -51,7 +43,8 @@ public final class WorkoutCsv {
     for (int i = 1; i < records.size(); i++) {
       try {
         var cells = records.get(i);
-        if (cells.size() != HEADER.size()) throw new DomainException("Expected 7 columns.");
+        if (cells.size() != columns)
+          throw new DomainException("Column count must match the header.");
         String currentName = Checks.name(cells.get(0));
         if (name != null && !name.equals(currentName))
           throw new DomainException("Use the same workout name in every row.");
@@ -72,12 +65,47 @@ public final class WorkoutCsv {
         Checks.range(rest, 0, 3600, "Rest");
         Checks.range(weight, 0, 2000, "Weight");
         Checks.scale(weight, 3, "Weight");
-        rows.add(new Row(exercise, type, sets, reps, weight, rest));
+        Integer duration = columns == 10 ? integer(cells.get(7)) : null;
+        BigDecimal distance =
+            columns == 10 && !empty(cells.get(8)) ? Checks.decimal(cells.get(8)) : null;
+        List<WorkoutDtos.SetPlan> plan = List.of();
+        if (columns == 10 && !empty(cells.get(9))) {
+          try {
+            plan =
+                new com.fasterxml.jackson.databind.ObjectMapper()
+                    .readValue(
+                        cells.get(9),
+                        new com.fasterxml.jackson.core.type.TypeReference<
+                            List<WorkoutDtos.SetPlan>>() {});
+          } catch (Exception ex) {
+            throw new DomainException("Invalid set_plan JSON.");
+          }
+        }
+        Plans.validate(
+            type, new WorkoutDtos.Target(1, sets, reps, weight, rest, duration, distance, plan));
+        rows.add(new Row(exercise, type, sets, reps, weight, rest, duration, distance, plan));
       } catch (DomainException ex) {
         throw new DomainException(I18n.t("CSV row ") + (i + 1) + ": " + ex.getMessage());
       }
     }
     return new Parsed(name, List.copyOf(rows));
+  }
+
+  public static List<List<String>> table(byte[] bytes) {
+    if (bytes.length > MAX_BYTES) throw new DomainException("CSV must be at most 64 KiB.");
+    String text;
+    try {
+      text =
+          StandardCharsets.UTF_8
+              .newDecoder()
+              .onMalformedInput(CodingErrorAction.REPORT)
+              .decode(ByteBuffer.wrap(bytes))
+              .toString();
+    } catch (CharacterCodingException ex) {
+      throw new DomainException("Save the CSV file as UTF-8.");
+    }
+    if (text.startsWith("\uFEFF")) text = text.substring(1);
+    return records(text, text.lines().findFirst().orElse("").contains(";") ? ';' : ',');
   }
 
   private static boolean empty(String s) {
@@ -114,7 +142,7 @@ public final class WorkoutCsv {
           if (!(row.size() == 1 && row.get(0).isEmpty())) result.add(List.copyOf(row));
           row.clear();
           if (ch == '\r' && i + 1 < text.length() && text.charAt(i + 1) == '\n') i++;
-          if (result.size() > 31) throw new DomainException("A workout needs 1 to 30 exercises.");
+          if (result.size() > 3001) throw new DomainException("A workout needs 1 to 30 exercises.");
         }
       } else if (ch == '"' && field.length() == 0 && !closed) quoted = true;
       else {

@@ -14,12 +14,13 @@ import org.springframework.stereotype.Component;
 public class TelegramClient {
   public static class ApiException extends RuntimeException {
     public final int code, retryAfter;
-    public final boolean notModified, missingMessage;
+    public final boolean notModified, missingMessage, mediaMessage;
 
     ApiException(String method, int code, int retryAfter, String description) {
       super("Telegram " + method + " failed (code " + code + ")");
       this.code = code;
       this.retryAfter = retryAfter;
+      mediaMessage = description.contains("there is no text in the message to edit");
       notModified = description.contains("message is not modified");
       missingMessage =
           description.contains("message to edit not found")
@@ -185,11 +186,20 @@ public class TelegramClient {
                               String callback = revision + "|" + button.action();
                               if (callback.getBytes(StandardCharsets.UTF_8).length > 64)
                                 throw new IllegalStateException("Callback exceeds Telegram limit");
-                              return Map.of("text", button.text(), "callback_data", callback);
+                              Map<String, String> item = new HashMap<>();
+                              item.put("text", button.text());
+                              item.put("callback_data", callback);
+                              if (button.style() != null) item.put("style", button.style());
+                              return item;
                             })
                         .toList())
             .toList();
     payload.put("reply_markup", Map.of("inline_keyboard", keyboard));
+    if (screen.attachment() != null)
+      return deliverDocument(chatId, messageId, screen, payload.get("reply_markup"));
+    if (screen.chart() != null)
+      return deliverChart(chatId, messageId, screen, payload.get("reply_markup"));
+    boolean replaceMedia = false;
     if (messageId != null) {
       payload.put("message_id", messageId);
       try {
@@ -197,11 +207,132 @@ public class TelegramClient {
         return messageId;
       } catch (ApiException ex) {
         if (ex.notModified) return messageId;
-        if (!ex.missingMessage) throw ex;
+        if (!ex.missingMessage && !ex.mediaMessage) throw ex;
+        replaceMedia = ex.mediaMessage;
       }
       payload.remove("message_id");
     }
-    return call("sendMessage", payload, false).path("message_id").asLong();
+    long sent = call("sendMessage", payload, false).path("message_id").asLong();
+    if (replaceMedia) {
+      try {
+        call("deleteMessage", Map.of("chat_id", chatId, "message_id", messageId), false);
+      } catch (ApiException ignored) {
+        /* Delivery succeeded; an old chart must not cause duplicate sends. */
+      }
+    }
+    return sent;
+  }
+
+  private long deliverDocument(long chatId, Long messageId, Screen screen, Object keyboard) {
+    var a = screen.attachment();
+    var fields = new HashMap<String, Object>();
+    fields.put("chat_id", chatId);
+    fields.put("reply_markup", keyboard);
+    fields.put("document", "attach://chart");
+    fields.put("caption", screen.text());
+    long sent =
+        upload(
+                "sendDocument",
+                fields,
+                a.content().getBytes(StandardCharsets.UTF_8),
+                a.filename(),
+                "text/csv; charset=utf-8")
+            .path("message_id")
+            .asLong();
+    if (messageId != null)
+      try {
+        call("deleteMessage", Map.of("chat_id", chatId, "message_id", messageId), false);
+      } catch (ApiException ignored) {
+      }
+    return sent;
+  }
+
+  private long deliverChart(long chatId, Long messageId, Screen screen, Object keyboard) {
+    if (screen.text().length() > 1024)
+      throw new IllegalArgumentException("Chart caption exceeds Telegram limit");
+    byte[] png = dev.workout.telegram.message.ChartRenderer.render(screen.chart());
+    var payload = new HashMap<String, Object>();
+    payload.put("chat_id", chatId);
+    payload.put("reply_markup", keyboard);
+    if (messageId != null) {
+      payload.put("message_id", messageId);
+      payload.put(
+          "media", Map.of("type", "photo", "media", "attach://chart", "caption", screen.text()));
+      try {
+        upload("editMessageMedia", payload, png);
+        return messageId;
+      } catch (ApiException ex) {
+        if (ex.notModified) return messageId;
+        if (!ex.missingMessage) throw ex;
+      }
+      payload.remove("message_id");
+      payload.remove("media");
+    }
+    payload.put("photo", "attach://chart");
+    payload.put("caption", screen.text());
+    return upload("sendPhoto", payload, png).path("message_id").asLong();
+  }
+
+  private JsonNode upload(String method, Map<String, Object> fields, byte[] png) {
+    return upload(method, fields, png, "progress.png", "image/png");
+  }
+
+  private JsonNode upload(
+      String method, Map<String, Object> fields, byte[] png, String filename, String mime) {
+    if (!filename.matches("[A-Za-z0-9._-]+"))
+      throw new IllegalArgumentException("Invalid attachment filename");
+    try {
+      String boundary = "workout-" + UUID.randomUUID();
+      var body = new java.io.ByteArrayOutputStream();
+      for (var entry : fields.entrySet()) {
+        String value =
+            entry.getValue() instanceof String str
+                ? str
+                : json.writeValueAsString(entry.getValue());
+        body.write(
+            ("--"
+                    + boundary
+                    + "\r\nContent-Disposition: form-data; name=\""
+                    + entry.getKey()
+                    + "\"\r\n\r\n"
+                    + value
+                    + "\r\n")
+                .getBytes(StandardCharsets.UTF_8));
+      }
+      body.write(
+          ("--"
+                  + boundary
+                  + "\r\nContent-Disposition: form-data; name=\"chart\"; filename=\""
+                  + filename
+                  + "\"\r\nContent-Type: "
+                  + mime
+                  + "\r\n\r\n")
+              .getBytes(StandardCharsets.UTF_8));
+      body.write(png);
+      body.write(("\r\n--" + boundary + "--\r\n").getBytes(StandardCharsets.UTF_8));
+      var request =
+          HttpRequest.newBuilder(URI.create(endpoint + method))
+              .timeout(Duration.ofSeconds(20))
+              .header("Content-Type", "multipart/form-data; boundary=" + boundary)
+              .POST(HttpRequest.BodyPublishers.ofByteArray(body.toByteArray()))
+              .build();
+      var response = http.send(request, HttpResponse.BodyHandlers.ofString());
+      var data = json.readTree(response.body());
+      if (!data.path("ok").asBoolean())
+        throw new ApiException(
+            method,
+            data.path("error_code").asInt(response.statusCode()),
+            data.path("parameters").path("retry_after").asInt(3),
+            data.path("description").asText());
+      return data.path("result");
+    } catch (ApiException ex) {
+      throw ex;
+    } catch (InterruptedException ex) {
+      Thread.currentThread().interrupt();
+      throw new ApiException(method, 0, 3, "interrupted");
+    } catch (Exception ex) {
+      throw new ApiException(method, 0, 3, "transport failure");
+    }
   }
 
   public void registerCommands() {

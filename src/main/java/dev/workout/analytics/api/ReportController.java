@@ -43,7 +43,10 @@ public class ReportController {
 
   @GetMapping("/analytics/{period}")
   public AnalyticsService.Report report(
-      @RequestAttribute long telegramId, @PathVariable String period) {
+      @RequestAttribute long telegramId,
+      @PathVariable String period,
+      @RequestParam(defaultValue = "true") boolean workingOnly,
+      @RequestParam(defaultValue = "true") boolean equalElapsed) {
     String normalized =
         switch (period) {
           case "weekly" -> "week";
@@ -51,15 +54,17 @@ public class ReportController {
           case "yearly" -> "year";
           default -> period;
         };
-    return analytics.report(users.byTelegram(telegramId).id, normalized);
+    return analytics.report(users.byTelegram(telegramId).id, normalized, workingOnly, equalElapsed);
   }
 
   @GetMapping("/exercises/{id}/progress")
   public AnalyticsService.Progress progress(
       @RequestAttribute long telegramId,
       @PathVariable long id,
-      @RequestParam(defaultValue = "quarter") String period) {
-    return analytics.progress(users.byTelegram(telegramId).id, id, period);
+      @RequestParam(defaultValue = "quarter") String period,
+      @RequestParam(defaultValue = "true") boolean workingOnly,
+      @RequestParam(defaultValue = "true") boolean bySession) {
+    return analytics.progress(users.byTelegram(telegramId).id, id, period, workingOnly, bySession);
   }
 
   @GetMapping("/exercises/{id}/history")

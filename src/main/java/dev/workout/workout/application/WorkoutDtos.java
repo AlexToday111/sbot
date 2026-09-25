@@ -9,7 +9,26 @@ public final class WorkoutDtos {
   private WorkoutDtos() {}
 
   public record Target(
-      long exerciseId, Integer sets, Integer reps, BigDecimal weight, Integer restSeconds) {}
+      long exerciseId,
+      Integer sets,
+      Integer reps,
+      BigDecimal weight,
+      Integer restSeconds,
+      Integer durationSeconds,
+      BigDecimal distance,
+      List<SetPlan> plan) {
+    public Target(
+        long exerciseId, Integer sets, Integer reps, BigDecimal weight, Integer restSeconds) {
+      this(exerciseId, sets, reps, weight, restSeconds, null, null, List.of());
+    }
+  }
+
+  public record SetPlan(
+      Integer reps,
+      BigDecimal weight,
+      Integer durationSeconds,
+      BigDecimal distance,
+      boolean warmup) {}
 
   public record TemplateInput(String name, String description, List<Target> exercises) {}
 
@@ -21,7 +40,33 @@ public final class WorkoutDtos {
       Integer targetSets,
       Integer targetReps,
       BigDecimal targetWeight,
-      Integer restSeconds) {}
+      Integer restSeconds,
+      Integer targetDuration,
+      BigDecimal targetDistance,
+      List<SetPlan> plan) {
+    public TemplateItem(
+        long exerciseId,
+        String name,
+        MetricType metricType,
+        int position,
+        Integer targetSets,
+        Integer targetReps,
+        BigDecimal targetWeight,
+        Integer restSeconds) {
+      this(
+          exerciseId,
+          name,
+          metricType,
+          position,
+          targetSets,
+          targetReps,
+          targetWeight,
+          restSeconds,
+          null,
+          null,
+          List.of());
+    }
+  }
 
   public record TemplateView(
       long id, String name, String description, List<TemplateItem> exercises) {}
@@ -33,7 +78,19 @@ public final class WorkoutDtos {
       Integer durationSeconds,
       BigDecimal distance,
       BigDecimal rpe,
-      String notes) {}
+      String notes,
+      boolean warmup) {
+    public SetInput(
+        long sessionExerciseId,
+        BigDecimal weight,
+        Integer repetitions,
+        Integer durationSeconds,
+        BigDecimal distance,
+        BigDecimal rpe,
+        String notes) {
+      this(sessionExerciseId, weight, repetitions, durationSeconds, distance, rpe, notes, false);
+    }
+  }
 
   public record SetView(
       long id,
@@ -43,7 +100,8 @@ public final class WorkoutDtos {
       Integer durationSeconds,
       BigDecimal distance,
       BigDecimal rpe,
-      String notes) {}
+      String notes,
+      boolean warmup) {}
 
   public record ExerciseView(
       long id,
@@ -55,7 +113,11 @@ public final class WorkoutDtos {
       Integer targetReps,
       BigDecimal targetWeight,
       Integer restSeconds,
-      List<SetView> sets) {}
+      List<SetView> sets,
+      Integer targetDuration,
+      BigDecimal targetDistance,
+      List<SetPlan> plan,
+      boolean skipped) {}
 
   public record Summary(
       long durationSeconds, int exercises, int sets, long repetitions, BigDecimal volume) {}
@@ -69,5 +131,8 @@ public final class WorkoutDtos {
       Instant finishedAt,
       int currentPosition,
       List<ExerciseView> exercises,
-      Summary summary) {}
+      Summary summary,
+      Instant pausedAt,
+      long pausedSeconds,
+      Instant restUntil) {}
 }

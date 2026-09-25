@@ -1,6 +1,7 @@
 package dev.workout.telegram.handler;
 
 import static dev.workout.common.I18n.t;
+import static dev.workout.telegram.message.Screen.b;
 
 import dev.workout.common.*;
 import dev.workout.telegram.callback.CallbackHandler;
@@ -50,10 +51,14 @@ public class HistoryHandler implements CallbackHandler {
                     + " · "
                     + s.name(),
                 "history:summary:" + s.id()));
-    if (page > 0) b.button(t("← Previous page"), "history:month:" + month + ":" + (page - 1));
-    if (items.size() == 8) b.button(t("Next page →"), "history:month:" + month + ":" + (page + 1));
-    return b.button(t("← Previous month"), "history:month:" + month.minusMonths(1) + ":0")
-        .button(t("Next month →"), "history:month:" + month.plusMonths(1) + ":0")
+    b.row(
+        b(t("+ Past workout"), "train:historical:0"),
+        b(t("Import history"), "train:historyimport"));
+    b.button(t("Export CSV"), "train:export:" + month);
+    return b.pages(page, items.size() == 8, "history:month:" + month + ":")
+        .row(
+            b("‹ " + month.minusMonths(1), "history:month:" + month.minusMonths(1) + ":0"),
+            b(month.plusMonths(1) + " ›", "history:month:" + month.plusMonths(1) + ":0"))
         .home()
         .build();
   }

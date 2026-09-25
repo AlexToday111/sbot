@@ -9,7 +9,15 @@ public final class WorkoutMapper {
 
   public static SetView set(ExerciseSet s) {
     return new SetView(
-        s.id, s.setNumber, s.weight, s.repetitions, s.durationSeconds, s.distance, s.rpe, s.notes);
+        s.id,
+        s.setNumber,
+        s.weight,
+        s.repetitions,
+        s.durationSeconds,
+        s.distance,
+        s.rpe,
+        s.notes,
+        s.warmup);
   }
 
   public static SessionView session(WorkoutSession s, Instant now) {
@@ -35,13 +43,20 @@ public final class WorkoutMapper {
                         e.targetReps,
                         e.targetWeight,
                         e.restSeconds,
-                        e.recordedSets().stream().map(WorkoutMapper::set).toList()))
+                        e.recordedSets().stream().map(WorkoutMapper::set).toList(),
+                        e.targetDuration,
+                        e.targetDistance,
+                        Plans.read(e.setPlan),
+                        e.skipped))
             .toList(),
         new Summary(
             stats.durationSeconds(),
             stats.exercises(),
             stats.sets(),
             stats.repetitions(),
-            stats.volume()));
+            stats.volume()),
+        s.pausedAt,
+        s.pausedSeconds,
+        s.restUntil);
   }
 }

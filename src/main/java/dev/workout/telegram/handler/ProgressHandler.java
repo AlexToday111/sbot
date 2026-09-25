@@ -1,6 +1,7 @@
 package dev.workout.telegram.handler;
 
 import static dev.workout.common.I18n.t;
+import static dev.workout.telegram.message.Screen.b;
 
 import dev.workout.analytics.application.AnalyticsService;
 import dev.workout.common.*;
@@ -33,18 +34,15 @@ public class ProgressHandler implements CallbackHandler {
   public Screen handle(Interaction c, String[] p) {
     c.flow(Flow.HOME);
     return switch (p[1]) {
-      case "menu" ->
-          Screen.title(
-                  t("▥ Progress\n\nCompleted workouts only. Calendar periods use your timezone."))
-              .button(t("This week"), "progress:period:week")
-              .button(t("This month"), "progress:period:month")
-              .button(t("3 months"), "progress:period:quarter")
-              .button(t("This year"), "progress:period:year")
-              .button(t("Exercises"), "progress:exercises:0")
-              .button(t("Training volume"), "progress:period:month")
-              .button(t("Workout frequency"), "progress:frequency:month:0")
-              .home()
-              .build();
+      case "filter" -> {
+        c.data().allSets = !c.data().allSets;
+        yield period(c, p[2]);
+      }
+      case "exfilter" -> {
+        c.data().allSets = !c.data().allSets;
+        yield exercise(c, Long.parseLong(p[2]), p[3]);
+      }
+      case "menu" -> period(c, "month");
       case "period" -> period(c, p[2]);
       case "frequency" -> frequency(c, p[2], Integer.parseInt(p[3]));
       case "exercises" -> exerciseList(c, Integer.parseInt(p[2]));
@@ -55,12 +53,13 @@ public class ProgressHandler implements CallbackHandler {
   }
 
   private Screen period(Interaction c, String period) {
-    var r = analytics.report(c.uid(), period);
+    var r = analytics.report(c.uid(), period, !c.data().allSets, true);
     var t = r.current();
     var prev = r.previous();
     var b =
         Screen.title(
-                "▥ "
+                t("▥ Progress")
+                    + " · "
                     + label(period)
                     + "\n"
                     + r.start()
@@ -80,7 +79,7 @@ public class ProgressHandler implements CallbackHandler {
                     + Format.n(t.volume())
                     + t(" kg"))
             .line(
-                t("\nPrevious full period: ")
+                t("\nPrevious equal elapsed period: ")
                     + prev.workouts()
                     + t(" workouts · ")
                     + Format.n(prev.volume())
@@ -104,14 +103,23 @@ public class ProgressHandler implements CallbackHandler {
         t("Average: ")
             + String.format(java.util.Locale.ROOT, "%.1f", t.workouts() * 7.0 / elapsed)
             + t(" workouts/week so far"));
-    return b.button(t("Daily frequency & volume"), "progress:frequency:" + period + ":0")
-        .button(t("← Progress"), "progress:menu")
+    b.chart(
+        ProgressCharts.report(
+            r, java.time.LocalDate.now(clock.withZone(ZoneId.of(c.user().timezone)))));
+    b.button(
+        t(c.data().allSets ? "All sets — show working only" : "Working sets — show all"),
+        "progress:filter:" + period);
+    periods(b, period, "progress:period:");
+    if (t.workouts() == 0) b.primary(t("▶ Start workout"), "workout:list:0");
+    return b.row(
+            b(t("By day"), "progress:frequency:" + period + ":0"),
+            b(t("By exercise"), "progress:exercises:0"))
         .home()
         .build();
   }
 
   private Screen frequency(Interaction c, String period, int page) {
-    var r = analytics.report(c.uid(), period);
+    var r = analytics.report(c.uid(), period, !c.data().allSets, true);
     var list = r.frequency();
     var b =
         Screen.title(
@@ -128,27 +136,33 @@ public class ProgressHandler implements CallbackHandler {
                         + Format.n(d.volume())
                         + t(" kg")));
     if (list.isEmpty()) b.line(t("\nNo completed workouts yet."));
-    if (page > 0) b.button(t("← Previous"), "progress:frequency:" + period + ":" + (page - 1));
-    if (to < list.size()) b.button(t("Next →"), "progress:frequency:" + period + ":" + (page + 1));
-    return b.button(t("← Period"), "progress:period:" + period).home().build();
+    return b.pages(page, to < list.size(), "progress:frequency:" + period + ":")
+        .navigation("progress:period:" + period)
+        .build();
   }
 
   private Screen exerciseList(Interaction c, int page) {
     var list = exercises.search(c.uid(), "", page);
     var b = Screen.title(t("Exercise progress\nChoose an exercise."));
     list.forEach(e -> b.button(e.name, "progress:exercise:" + e.id + ":quarter"));
-    if (page > 0) b.button(t("← Previous"), "progress:exercises:" + (page - 1));
-    if (list.size() == 8) b.button(t("Next →"), "progress:exercises:" + (page + 1));
-    return b.button(t("← Progress"), "progress:menu").home().build();
+    return b.pages(page, list.size() == 8, "progress:exercises:")
+        .navigation("progress:menu")
+        .build();
   }
 
   private Screen exercise(Interaction c, long eid, String period) {
-    var p = analytics.progress(c.uid(), eid, period);
+    var p = analytics.progress(c.uid(), eid, period, !c.data().allSets, true);
     var b =
         Screen.title(
             p.name() + "\n" + label(period) + "\n\n" + t(p.metric()) + " (" + t(p.unit()) + ")");
-    p.points().forEach(point -> b.line(point.month() + "   " + Format.n(point.value())));
+    b.chart(ProgressCharts.sessions(p));
     if (p.points().isEmpty()) b.line(t("Complete a workout to see progress."));
+    else
+      b.line(
+          t("Latest result: ")
+              + Format.n(p.points().get(p.points().size() - 1).value())
+              + " "
+              + t(p.unit()));
     if (p.changePercent() != null) b.line(t("\nChange: ") + Format.n(p.changePercent()) + "%");
     if (p.records() != null) {
       var r = p.records();
@@ -165,12 +179,15 @@ public class ProgressHandler implements CallbackHandler {
               + Format.n(r.estimatedOneRm())
               + t(" kg\nEpley estimate; high-rep estimates are less reliable."));
     }
-    return b.button(t("This month"), "progress:exercise:" + eid + ":month")
-        .button(t("3 months"), "progress:exercise:" + eid + ":quarter")
-        .button(t("This year"), "progress:exercise:" + eid + ":year")
+    b.button(
+        t(c.data().allSets ? "All sets — show working only" : "Working sets — show all"),
+        "progress:exfilter:" + eid + ":" + period);
+    return b.row(
+            periodButton("Month", "month", period, "progress:exercise:" + eid + ":"),
+            periodButton("3 months", "quarter", period, "progress:exercise:" + eid + ":"),
+            periodButton("Year", "year", period, "progress:exercise:" + eid + ":"))
         .button(t("Recent workouts"), "progress:history:" + eid + ":0")
-        .button(t("← Exercises"), "progress:exercises:0")
-        .home()
+        .navigation("progress:exercises:0")
         .build();
   }
 
@@ -196,11 +213,26 @@ public class ProgressHandler implements CallbackHandler {
           t("Full workout · ") + s.startedAt().atZone(ZoneId.of(c.user().timezone)).toLocalDate(),
           "history:detail:" + s.id() + ":0:0");
     }
-    if (page > 0) b.button(t("← Previous"), "progress:history:" + eid + ":" + (page - 1));
-    if (list.size() == 5) b.button(t("Next →"), "progress:history:" + eid + ":" + (page + 1));
-    return b.button(t("← Exercise progress"), "progress:exercise:" + eid + ":quarter")
-        .home()
+    return b.pages(page, list.size() == 5, "progress:history:" + eid + ":")
+        .navigation("progress:exercise:" + eid + ":quarter")
         .build();
+  }
+
+  private void periods(Screen.Builder screen, String selected, String prefix) {
+    screen
+        .row(
+            periodButton("Week", "week", selected, prefix),
+            periodButton("Month", "month", selected, prefix))
+        .row(
+            periodButton("3 months", "quarter", selected, prefix),
+            periodButton("Year", "year", selected, prefix));
+  }
+
+  private Screen.Button periodButton(String label, String value, String selected, String prefix) {
+    return new Screen.Button(
+        (value.equals(selected) ? "✓ " : "") + t(label),
+        prefix + value,
+        value.equals(selected) ? "primary" : null);
   }
 
   private String label(String period) {

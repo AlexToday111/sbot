@@ -110,6 +110,104 @@
         }
       }
     },
+    "/api/training/settings": {
+      "get": {
+        "tags": [
+          "training-controller"
+        ],
+        "operationId": "preferences",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/Preferences"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "training-controller"
+        ],
+        "operationId": "preferences_1",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Preferences"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/Preferences"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/training/sessions/{id}/sets/{setId}": {
+      "put": {
+        "tags": [
+          "training-controller"
+        ],
+        "operationId": "edit_1",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "setId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/workouts": {
       "get": {
         "tags": [
@@ -179,6 +277,26 @@
           "workout-controller"
         ],
         "operationId": "importCsv",
+        "parameters": [
+          {
+            "name": "replaceId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "allowDuplicate",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "multipart/form-data": {
@@ -204,6 +322,341 @@
               "*/*": {
                 "schema": {
                   "$ref": "#/components/schemas/TemplateView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/training/sessions/{id}/template": {
+      "post": {
+        "tags": [
+          "training-controller"
+        ],
+        "operationId": "template",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "name",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/TemplateView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/training/sessions/{id}/rest": {
+      "post": {
+        "tags": [
+          "training-controller"
+        ],
+        "operationId": "rest",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Rest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/training/sessions/{id}/pause": {
+      "post": {
+        "tags": [
+          "training-controller"
+        ],
+        "operationId": "pause",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Pause"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/training/sessions/{id}/finish-at": {
+      "post": {
+        "tags": [
+          "training-controller"
+        ],
+        "operationId": "finish",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Finish"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/training/sessions/{id}/exercises": {
+      "post": {
+        "tags": [
+          "training-controller"
+        ],
+        "operationId": "change",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Change"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/training/schedule": {
+      "get": {
+        "tags": [
+          "training-controller"
+        ],
+        "operationId": "schedule",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Appointment"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "training-controller"
+        ],
+        "operationId": "schedule_1",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Schedule"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/Appointment"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/training/history": {
+      "post": {
+        "tags": [
+          "training-controller"
+        ],
+        "operationId": "history",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HistoricalInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/training/history/import": {
+      "post": {
+        "tags": [
+          "training-controller"
+        ],
+        "operationId": "importHistory",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                },
+                "required": [
+                  "file"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SessionView"
+                  }
                 }
               }
             }
@@ -344,7 +797,7 @@
         "tags": [
           "session-controller"
         ],
-        "operationId": "finish",
+        "operationId": "finish_1",
         "parameters": [
           {
             "name": "id",
@@ -590,6 +1043,121 @@
         }
       }
     },
+    "/api/training/suggestions/{id}": {
+      "get": {
+        "tags": [
+          "training-controller"
+        ],
+        "operationId": "suggest",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/Suggestion"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/training/sessions/{id}/comparison": {
+      "get": {
+        "tags": [
+          "training-controller"
+        ],
+        "operationId": "comparison",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Comparison"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/training/history/export": {
+      "get": {
+        "tags": [
+          "training-controller"
+        ],
+        "operationId": "exportHistory",
+        "parameters": [
+          {
+            "name": "month",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/csv;charset=UTF-8": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/training/goal": {
+      "get": {
+        "tags": [
+          "training-controller"
+        ],
+        "operationId": "goal",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/Goal"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/sessions/{id}": {
       "get": {
         "tags": [
@@ -646,7 +1214,7 @@
         "tags": [
           "report-controller"
         ],
-        "operationId": "history",
+        "operationId": "history_1",
         "parameters": [
           {
             "name": "month",
@@ -707,6 +1275,24 @@
             "schema": {
               "type": "string",
               "default": "quarter"
+            }
+          },
+          {
+            "name": "workingOnly",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": true
+            }
+          },
+          {
+            "name": "bySession",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": true
             }
           }
         ],
@@ -782,6 +1368,24 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "workingOnly",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": true
+            }
+          },
+          {
+            "name": "equalElapsed",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": true
+            }
           }
         ],
         "responses": {
@@ -794,6 +1398,30 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/api/training/schedule/{id}": {
+      "delete": {
+        "tags": [
+          "training-controller"
+        ],
+        "operationId": "cancel_1",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
           }
         }
       }
@@ -841,6 +1469,28 @@
   },
   "components": {
     "schemas": {
+      "SetPlan": {
+        "type": "object",
+        "properties": {
+          "reps": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "weight": {
+            "type": "number"
+          },
+          "durationSeconds": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "distance": {
+            "type": "number"
+          },
+          "warmup": {
+            "type": "boolean"
+          }
+        }
+      },
       "Target": {
         "type": "object",
         "properties": {
@@ -862,6 +1512,19 @@
           "restSeconds": {
             "type": "integer",
             "format": "int32"
+          },
+          "durationSeconds": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "distance": {
+            "type": "number"
+          },
+          "plan": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SetPlan"
+            }
           }
         }
       },
@@ -919,6 +1582,19 @@
           "restSeconds": {
             "type": "integer",
             "format": "int32"
+          },
+          "targetDuration": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "targetDistance": {
+            "type": "number"
+          },
+          "plan": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SetPlan"
+            }
           }
         }
       },
@@ -943,12 +1619,58 @@
           }
         }
       },
-      "Start": {
+      "Preferences": {
         "type": "object",
         "properties": {
-          "templateId": {
+          "weeklyGoal": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "restNotifications": {
+            "type": "boolean"
+          },
+          "weightStep": {
+            "type": "number"
+          },
+          "repMin": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "repMax": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "SetInput": {
+        "type": "object",
+        "properties": {
+          "sessionExerciseId": {
             "type": "integer",
             "format": "int64"
+          },
+          "weight": {
+            "type": "number"
+          },
+          "repetitions": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "durationSeconds": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "distance": {
+            "type": "number"
+          },
+          "rpe": {
+            "type": "number"
+          },
+          "notes": {
+            "type": "string"
+          },
+          "warmup": {
+            "type": "boolean"
           }
         }
       },
@@ -999,6 +1721,22 @@
             "items": {
               "$ref": "#/components/schemas/SetView"
             }
+          },
+          "targetDuration": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "targetDistance": {
+            "type": "number"
+          },
+          "plan": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SetPlan"
+            }
+          },
+          "skipped": {
+            "type": "boolean"
           }
         }
       },
@@ -1039,6 +1777,18 @@
           },
           "summary": {
             "$ref": "#/components/schemas/Summary"
+          },
+          "pausedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "pausedSeconds": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "restUntil": {
+            "type": "string",
+            "format": "date-time"
           }
         }
       },
@@ -1072,6 +1822,9 @@
           },
           "notes": {
             "type": "string"
+          },
+          "warmup": {
+            "type": "boolean"
           }
         }
       },
@@ -1099,32 +1852,153 @@
           }
         }
       },
-      "SetInput": {
+      "Rest": {
         "type": "object",
         "properties": {
-          "sessionExerciseId": {
+          "seconds": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "extend": {
+            "type": "boolean"
+          }
+        }
+      },
+      "Pause": {
+        "type": "object",
+        "properties": {
+          "paused": {
+            "type": "boolean"
+          }
+        }
+      },
+      "Finish": {
+        "type": "object",
+        "properties": {
+          "finishedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "Change": {
+        "type": "object",
+        "properties": {
+          "itemId": {
             "type": "integer",
             "format": "int64"
           },
-          "weight": {
-            "type": "number"
+          "exerciseId": {
+            "type": "integer",
+            "format": "int64"
           },
-          "repetitions": {
+          "position": {
             "type": "integer",
             "format": "int32"
           },
-          "durationSeconds": {
+          "skipped": {
+            "type": "boolean"
+          }
+        }
+      },
+      "Schedule": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "templateId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "localStart": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "repeatWeeks": {
             "type": "integer",
             "format": "int32"
           },
-          "distance": {
-            "type": "number"
+          "reminders": {
+            "type": "boolean"
+          }
+        }
+      },
+      "Appointment": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
           },
-          "rpe": {
-            "type": "number"
+          "templateId": {
+            "type": "integer",
+            "format": "int64"
           },
-          "notes": {
+          "name": {
             "type": "string"
+          },
+          "localStart": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "repeatWeeks": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "reminders": {
+            "type": "boolean"
+          }
+        }
+      },
+      "HistoricalExercise": {
+        "type": "object",
+        "properties": {
+          "exerciseId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "sets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SetInput"
+            }
+          }
+        }
+      },
+      "HistoricalInput": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "finishedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "exercises": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HistoricalExercise"
+            }
+          },
+          "pausedSeconds": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "Start": {
+        "type": "object",
+        "properties": {
+          "templateId": {
+            "type": "integer",
+            "format": "int64"
           }
         }
       },
@@ -1195,6 +2069,62 @@
           },
           "language": {
             "type": "string"
+          }
+        }
+      },
+      "Suggestion": {
+        "type": "object",
+        "properties": {
+          "template": {
+            "$ref": "#/components/schemas/TemplateInput"
+          },
+          "reason": {
+            "type": "string"
+          }
+        }
+      },
+      "Comparison": {
+        "type": "object",
+        "properties": {
+          "exercise": {
+            "type": "string"
+          },
+          "planned": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "completed": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "extra": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "skipped": {
+            "type": "boolean"
+          },
+          "previousVolume": {
+            "type": "number"
+          },
+          "currentVolume": {
+            "type": "number"
+          }
+        }
+      },
+      "Goal": {
+        "type": "object",
+        "properties": {
+          "target": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "completed": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "next": {
+            "$ref": "#/components/schemas/Appointment"
           }
         }
       },

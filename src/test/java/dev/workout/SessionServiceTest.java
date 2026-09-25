@@ -55,6 +55,15 @@ class SessionServiceTest {
     s.userId = 1;
     s.startedAt = clock.instant().minusSeconds(100);
     when(repo.findById(2L)).thenReturn(Optional.of(s));
+    SessionExercise e = new SessionExercise();
+    e.id = 3L;
+    e.metricType = MetricType.TIMED;
+    ExerciseSet x = new ExerciseSet();
+    x.id = 4L;
+    x.durationSeconds = 30;
+    x.createdAt = clock.instant();
+    e.sets.add(x);
+    s.exercises.add(e);
     var result = service.finish(1, 2);
     service.finish(1, 2);
     assertThat(result.summary().durationSeconds()).isEqualTo(100);

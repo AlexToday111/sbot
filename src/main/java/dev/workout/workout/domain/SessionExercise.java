@@ -22,6 +22,7 @@ public class SessionExercise {
   public MetricType metricType;
 
   public int position;
+  public boolean skipped;
 
   @Column(name = "target_sets")
   public Integer targetSets;
@@ -31,6 +32,15 @@ public class SessionExercise {
 
   @Column(name = "target_weight")
   public BigDecimal targetWeight;
+
+  @Column(name = "target_duration")
+  public Integer targetDuration;
+
+  @Column(name = "target_distance")
+  public BigDecimal targetDistance;
+
+  @Column(name = "set_plan")
+  public String setPlan = "[]";
 
   @Column(name = "rest_seconds")
   public Integer restSeconds;

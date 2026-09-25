@@ -17,7 +17,15 @@ import org.springframework.stereotype.Component;
 public class SessionHandler implements CallbackHandler {
   private final SessionService sessions;
 
-  public SessionHandler(SessionService s) {
+  private final TrainingService training;
+  private final PlanningService planning;
+  private final java.time.Clock clock;
+
+  public SessionHandler(
+      SessionService s, TrainingService training, PlanningService planning, java.time.Clock clock) {
+    this.training = training;
+    this.planning = planning;
+    this.clock = clock;
     sessions = s;
   }
 
@@ -63,6 +71,8 @@ public class SessionHandler implements CallbackHandler {
         var e = find(s, Long.parseLong(p[3]));
         var last = last(c, e);
         if (last == null) throw new DomainException(t("No previous set available."));
+        c.data().editingSetId = null;
+        c.data().warmup = last.warmup();
         c.data().sessionId = s.id();
         c.data().sessionExerciseId = e.id();
         yield save(
@@ -77,14 +87,27 @@ public class SessionHandler implements CallbackHandler {
                 null));
       }
       case "undo" -> view(c, sessions.undo(c.uid(), Long.parseLong(p[2]), Long.parseLong(p[3])));
-      case "finishask" ->
-          Screen.title(
-                  t(
-                      "Finish this workout?\n\nEvery recorded set is already saved. Finishing adds it to history and updates records."))
-              .button(t("✓ Finish workout"), "session:finish:" + p[2])
-              .button(t("← Continue"), "session:view:" + p[2])
-              .home()
+      case "finishask" -> {
+        var current = sessions.get(c.uid(), Long.parseLong(p[2]));
+        if (current.exercises().stream().allMatch(e -> e.sets().isEmpty()))
+          yield Screen.title(t("No sets recorded. Cancel this empty workout instead."))
+              .danger(t("Cancel workout"), "session:cancelask:" + p[2])
+              .navigation("session:view:" + p[2])
               .build();
+        if (java.time.Duration.between(current.startedAt(), clock.instant()).toHours() >= 12)
+          yield Screen.title(
+                  t("This workout has been open for 12 hours. Enter its actual finish time."))
+              .primary(t("Enter finish time"), "train:finishat:" + p[2])
+              .navigation("session:view:" + p[2])
+              .build();
+        yield Screen.title(
+                t(
+                    "Finish this workout?\n\nEvery recorded set is already saved. Finishing adds it to history and updates records."))
+            .success(t("✓ Finish workout"), "session:finish:" + p[2])
+            .button(t("← Continue"), "session:view:" + p[2])
+            .home()
+            .build();
+      }
       case "finish" -> {
         c.flow(Flow.HOME);
         yield SessionScreens.summary(sessions.finish(c.uid(), Long.parseLong(p[2])));
@@ -93,7 +116,7 @@ public class SessionHandler implements CallbackHandler {
           Screen.title(
                   t(
                       "Cancel this workout?\n\nIts saved data is retained, but it will be excluded from progress and completed history."))
-              .button(t("Cancel workout"), "session:cancel:" + p[2])
+              .danger(t("Cancel workout"), "session:cancel:" + p[2])
               .button(t("← Continue"), "session:view:" + p[2])
               .home()
               .build();
@@ -108,6 +131,7 @@ public class SessionHandler implements CallbackHandler {
 
   public Screen view(Interaction c, SessionView s) {
     c.flow(Flow.HOME);
+    c.data().editingSetId = null;
     if (!s.status().equals("ACTIVE")) return SessionScreens.summary(s);
     c.data().sessionId = s.id();
     var e = s.exercises().get(s.currentPosition());
@@ -126,11 +150,27 @@ public class SessionHandler implements CallbackHandler {
       screen.line(
           t("\nTarget: ")
               + (e.targetSets() == null ? "–" : e.targetSets())
-              + t(" sets × ")
-              + (e.targetReps() == null ? "–" : e.targetReps())
-              + t(" reps")
+              + t(" sets")
+              + (e.targetReps() == null ? "" : " × " + e.targetReps() + t(" reps"))
               + (e.targetWeight() == null ? "" : " @ " + Format.n(e.targetWeight()) + t(" kg")));
     if (e.restSeconds() != null) screen.line(t("Rest: ") + e.restSeconds() + t(" seconds"));
+    if (e.targetDuration() != null)
+      screen.line(t("Duration target: ") + Format.duration(e.targetDuration()));
+    if (e.targetDistance() != null)
+      screen.line(t("Distance target: ") + Format.n(e.targetDistance()) + t(" km"));
+    if (e.skipped()) screen.line(t("Skipped"));
+    if (!e.plan().isEmpty()) {
+      var next = e.sets().size() < e.plan().size() ? e.plan().get(e.sets().size()) : null;
+      if (next != null) screen.line(t("Next planned set: ") + Format.plan(next));
+    }
+    if (s.pausedAt() != null) screen.line(t("Paused — training time is stopped."));
+    if (s.restUntil() != null)
+      screen.line(
+          t("Rest remaining: ")
+              + Format.duration(
+                  Math.max(
+                      0, java.time.Duration.between(clock.instant(), s.restUntil()).getSeconds())));
+    if (s.restUntil() != null) screen.button(t("Refresh timer"), "session:view:" + s.id());
     var previous = previous(c, e);
     screen.line(t("\nLast workout:"));
     if (previous.isEmpty()) screen.line(t("No previous performance yet."));
@@ -147,22 +187,40 @@ public class SessionHandler implements CallbackHandler {
           .subList(start, e.sets().size())
           .forEach(x -> screen.line(x.number() + ". " + Format.set(x)));
     }
-    screen.button(t("+ Add set"), "session:add:" + s.id() + ":" + e.id());
+    if (s.pausedAt() == null)
+      screen.primary(t("+ Add set"), "session:add:" + s.id() + ":" + e.id());
     var last = last(c, e);
-    if (last != null)
+    if (last != null && s.pausedAt() == null)
       screen.button(t("Repeat ") + Format.set(last), "session:same:" + s.id() + ":" + e.id());
     if (!e.sets().isEmpty())
       screen.button(
           t("↶ Undo last set"),
           "session:undo:" + s.id() + ":" + e.sets().get(e.sets().size() - 1).id());
-    if (e.position() > 0)
-      screen.button(t("← Previous exercise"), "session:nav:" + s.id() + ":" + (e.position() - 1));
-    if (e.position() + 1 < s.exercises().size())
-      screen.button(t("Next exercise →"), "session:nav:" + s.id() + ":" + (e.position() + 1));
+    screen.row(
+        e.position() > 0
+            ? b(t("← Exercise"), "session:nav:" + s.id() + ":" + (e.position() - 1))
+            : null,
+        e.position() + 1 < s.exercises().size()
+            ? b(t("Exercise →"), "session:nav:" + s.id() + ":" + (e.position() + 1))
+            : null);
+    screen.row(
+        b(t("Manage exercise"), "train:manage:" + s.id() + ":" + e.id()),
+        b(t("Edit sets"), "train:sets:" + s.id() + ":" + e.id() + ":0"));
+    screen.row(
+        b(
+            t(s.pausedAt() == null ? "Pause" : "Resume"),
+            "train:pause:" + s.id() + ":" + (s.pausedAt() == null)),
+        b(t("Plan vs actual"), "train:compare:" + s.id() + ":0"));
+    if (s.pausedAt() == null)
+      screen.row(
+          b(
+              t("Rest timer"),
+              "train:rest:" + s.id() + ":" + (e.restSeconds() == null ? 60 : e.restSeconds())),
+          b(t("+30 sec"), "train:extend:" + s.id()),
+          b(t("Skip rest"), "train:rest:" + s.id() + ":0"));
     return screen
-        .button(t("Finish workout"), "session:finishask:" + s.id())
-        .button(t("Cancel workout"), "session:cancelask:" + s.id())
-        .home()
+        .success(t("✓ Finish"), "session:finishask:" + s.id())
+        .row(b(t("Cancel workout"), "session:cancelask:" + s.id()), b(t("⌂ Menu"), "menu:home"))
         .build();
   }
 
@@ -172,17 +230,22 @@ public class SessionHandler implements CallbackHandler {
     var e = find(s, eid);
     c.data().sessionId = sid;
     c.data().sessionExerciseId = eid;
+    c.data().editingSetId = null;
+    c.data().warmup = e.sets().size() < e.plan().size() && e.plan().get(e.sets().size()).warmup();
     if (e.metricType() == MetricType.CARDIO || e.metricType() == MetricType.TIMED) return manual(c);
     c.flow(Flow.WEIGHT);
     var last = last(c, e);
+    var planned = e.sets().size() < e.plan().size() ? e.plan().get(e.sets().size()) : null;
     BigDecimal weight =
-        last != null && last.weight() != null
-            ? last.weight()
-            : e.targetWeight() != null ? e.targetWeight() : BigDecimal.ZERO;
+        planned != null && planned.weight() != null
+            ? planned.weight()
+            : last != null && last.weight() != null
+                ? last.weight()
+                : e.targetWeight() != null ? e.targetWeight() : BigDecimal.ZERO;
     var options = new LinkedHashSet<BigDecimal>();
-    options.add(weight.subtract(new BigDecimal("2.5")).max(BigDecimal.ZERO));
+    options.add(weight.subtract(planning.preferences(c.uid()).weightStep()).max(BigDecimal.ZERO));
     options.add(weight);
-    options.add(weight.add(new BigDecimal("2.5")).min(new BigDecimal("2000")));
+    options.add(weight.add(planning.preferences(c.uid()).weightStep()).min(new BigDecimal("2000")));
     var screen =
         Screen.title(e.name() + t("\n\nWeight (kg)\nChoose a value, or type a custom weight."));
     screen.row(
@@ -192,8 +255,7 @@ public class SessionHandler implements CallbackHandler {
     return screen
         .button(t("Custom weight"), "session:customweight")
         .button(t("Enter full set / RPE / notes"), "session:manual")
-        .button(t("← Workout"), "session:view:" + sid)
-        .home()
+        .navigation("session:view:" + sid)
         .build();
   }
 
@@ -203,10 +265,13 @@ public class SessionHandler implements CallbackHandler {
     c.flow(Flow.REPS);
     var e = find(sessions.get(c.uid(), c.data().sessionId), c.data().sessionExerciseId);
     var last = last(c, e);
+    var planned = e.sets().size() < e.plan().size() ? e.plan().get(e.sets().size()) : null;
     int base =
-        last != null && last.repetitions() != null
-            ? last.repetitions()
-            : e.targetReps() != null ? e.targetReps() : 8;
+        planned != null && planned.reps() != null
+            ? planned.reps()
+            : last != null && last.repetitions() != null
+                ? last.repetitions()
+                : e.targetReps() != null ? e.targetReps() : 8;
     var options =
         new LinkedHashSet<Integer>(
             List.of(Math.max(0, base - 2), base, Math.min(1000, base + 2), 12));
@@ -220,12 +285,11 @@ public class SessionHandler implements CallbackHandler {
                 .map(r -> b(r.toString(), "session:reps:" + r))
                 .toArray(Screen.Button[]::new))
         .button(t("Enter full set / RPE / notes"), "session:manual")
-        .button(t("← Workout"), "session:view:" + c.data().sessionId)
-        .home()
+        .navigation("session:view:" + c.data().sessionId)
         .build();
   }
 
-  private Screen manual(Interaction c) {
+  public Screen manual(Interaction c) {
     c.flow(Flow.METRICS);
     var e = find(sessions.get(c.uid(), c.data().sessionId), c.data().sessionExerciseId);
     String help =
@@ -241,8 +305,13 @@ public class SessionHandler implements CallbackHandler {
                 + help
                 + t(
                     "\n\nOptional: append | RPE | notes\nExample suffix: | 8 | Felt strong\nUse - to omit RPE.\nYour message saves the set."))
-        .button(t("← Workout"), "session:view:" + c.data().sessionId)
-        .home()
+        .button(
+            t(
+                c.data().warmup
+                    ? "Warmup set — switch to working"
+                    : "Working set — switch to warmup"),
+            "train:warmup")
+        .navigation("session:view:" + c.data().sessionId)
         .build();
   }
 
@@ -267,55 +336,28 @@ public class SessionHandler implements CallbackHandler {
               null,
               null));
     var e = find(sessions.get(c.uid(), c.data().sessionId), c.data().sessionExerciseId);
-    String[] parts = text.split("\\|", -1);
-    if (parts.length > 3) throw new DomainException(t("Use metrics | RPE | notes."));
-    String[] values = parts[0].trim().split("\\s+");
-    BigDecimal weight = null, distance = null;
-    Integer reps = null, duration = null;
-    switch (e.metricType()) {
-      case STRENGTH -> {
-        count(values, 2, 2);
-        weight = Checks.decimal(values[0]);
-        reps = Checks.integer(values[1]);
-      }
-      case BODYWEIGHT -> {
-        count(values, 1, 2);
-        reps = Checks.integer(values[0]);
-        if (values.length == 2) weight = Checks.decimal(values[1]);
-      }
-      case CARDIO -> {
-        count(values, 2, 2);
-        duration = Checks.integer(values[0]);
-        distance = Checks.decimal(values[1]);
-      }
-      case TIMED -> {
-        count(values, 1, 1);
-        duration = Checks.integer(values[0]);
-      }
-    }
-    BigDecimal rpe =
-        parts.length > 1 && !parts[1].trim().equals("-") && !parts[1].isBlank()
-            ? Checks.decimal(parts[1])
-            : null;
-    return save(
-        c,
-        new SetInput(
-            e.id(),
-            weight,
-            reps,
-            duration,
-            distance,
-            rpe,
-            parts.length > 2 ? parts[2].trim() : null));
+    return save(c, SetEntry.parse(e.metricType(), e.id(), text, c.data().warmup));
   }
 
   private Screen save(Interaction c, SetInput input) {
-    return view(c, sessions.addSet(c.uid(), c.data().sessionId, input, c.key("set")));
-  }
-
-  private void count(String[] a, int min, int max) {
-    if (a.length < min || a.length > max)
-      throw new DomainException(t("Check the metric format shown above and try again."));
+    input =
+        new SetInput(
+            input.sessionExerciseId(),
+            input.weight(),
+            input.repetitions(),
+            input.durationSeconds(),
+            input.distance(),
+            input.rpe(),
+            input.notes(),
+            c.state().flow == Flow.METRICS ? input.warmup() : c.data().warmup);
+    if (c.data().editingSetId != null)
+      return view(c, training.editSet(c.uid(), c.data().sessionId, c.data().editingSetId, input));
+    var result = sessions.addSet(c.uid(), c.data().sessionId, input, c.key("set"));
+    var e = find(result, input.sessionExerciseId());
+    if (e.restSeconds() != null && e.restSeconds() > 0)
+      result = training.rest(c.uid(), result.id(), e.restSeconds(), false);
+    c.data().warmup = false;
+    return view(c, result);
   }
 
   private ExerciseView find(SessionView s, long id) {

@@ -33,6 +33,8 @@ public final class SessionScreens {
                 + t(" sets")
                 + (volume == null ? "" : " · " + Format.n(volume) + t(" kg")));
       }
+    b.button(t("Plan vs actual"), "train:compare:" + s.id() + ":0");
+    b.button(t("Save as new template"), "train:savetemplate:" + s.id());
     b.button(t("View all sets"), "history:detail:" + s.id() + ":0:0")
         .button(t("▥ View progress"), "progress:menu");
     if ("COMPLETED".equals(s.status())) b.button(t("↻ Repeat workout"), "session:repeat:" + s.id());
@@ -74,6 +76,8 @@ public final class SessionScreens {
       b.button(t("← Previous exercise"), "history:detail:" + s.id() + ":" + (index - 1) + ":0");
     if (index + 1 < s.exercises().size())
       b.button(t("Next exercise →"), "history:detail:" + s.id() + ":" + (index + 1) + ":0");
+    if (!s.status().equals("CANCELLED"))
+      b.button(t("Edit sets"), "train:sets:" + s.id() + ":" + e.id() + ":0");
     return b.button(t("Exercise progress"), "progress:exercise:" + e.exerciseId() + ":quarter")
         .button(t("Summary"), "history:summary:" + s.id())
         .button(t("← History"), "history:current")

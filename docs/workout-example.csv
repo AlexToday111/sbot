@@ -1,4 +1,5 @@
-workout,exercise,metric_type,sets,reps,weight,rest_seconds
-Грудь и плечи,Bench Press,STRENGTH,3,8,70,90
-Грудь и плечи,Shoulder Press,STRENGTH,3,10,20,60
-Грудь и плечи,Планка,TIMED,3,,,60
+workout,exercise,metric_type,sets,reps,weight,rest_seconds,duration_seconds,distance,set_plan
+Грудь и плечи,Bench Press,STRENGTH,3,8,70,90,,,
+Грудь и плечи,Shoulder Press,STRENGTH,3,10,20,60,,,
+Грудь и плечи,Планка,TIMED,3,,,60,45,,
+Грудь и плечи,Running,CARDIO,1,,,90,600,2,

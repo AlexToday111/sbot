@@ -1,0 +1,2 @@
+workout,exercise,metric_type,sets,reps,weight,rest_seconds,duration_seconds,distance,set_plan
+Жим с разминкой,жим лёжа,STRENGTH,2,8,70,90,,,"[{""reps"":10,""weight"":20,""warmup"":true},{""reps"":8,""weight"":70,""warmup"":false},{""reps"":8,""weight"":70,""warmup"":false}]"

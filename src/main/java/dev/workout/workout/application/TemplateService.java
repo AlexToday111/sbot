@@ -50,7 +50,8 @@ public class TemplateService {
     // Validate before changing a managed aggregate, including when called by a Telegram flow.
     for (Target item : input.exercises()) {
       if (item == null) throw new DomainException("Choose an exercise.");
-      exercises.get(uid, item.exerciseId());
+      var exercise = exercises.get(uid, item.exerciseId());
+      Plans.validate(exercise.metricType, item);
       Checks.range(item.sets(), 1, 100, "Sets");
       Checks.range(item.reps(), 0, 1000, "Repetitions");
       Checks.range(item.weight(), 0, 2000, "Weight");
@@ -72,6 +73,9 @@ public class TemplateService {
       e.targetReps = item.reps();
       e.targetWeight = item.weight();
       e.restSeconds = item.restSeconds();
+      e.targetDuration = item.durationSeconds();
+      e.targetDistance = item.distance();
+      e.setPlan = Plans.write(item.plan());
       t.exercises.add(e);
     }
     return view(templates.saveAndFlush(t));
@@ -107,7 +111,10 @@ public class TemplateService {
                       i.targetSets,
                       i.targetReps,
                       i.targetWeight,
-                      i.restSeconds);
+                      i.restSeconds,
+                      i.targetDuration,
+                      i.targetDistance,
+                      Plans.read(i.setPlan));
                 })
             .toList());
   }

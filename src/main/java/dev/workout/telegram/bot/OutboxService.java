@@ -33,8 +33,10 @@ public class OutboxService {
   public void delivered(Delivery delivery, long messageId) {
     users.lock(delivery.userId());
     BotState s = states.findById(delivery.userId()).orElseThrow();
-    s.messageId = messageId;
-    if (s.revision == delivery.revision()) s.pending = false;
+    if (s.revision == delivery.revision()) {
+      s.messageId = messageId;
+      s.pending = false;
+    }
   }
 
   @Transactional

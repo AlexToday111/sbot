@@ -1,6 +1,7 @@
 package dev.workout.telegram.handler;
 
 import static dev.workout.common.I18n.t;
+import static dev.workout.telegram.message.Screen.b;
 
 import dev.workout.analytics.application.AnalyticsService;
 import dev.workout.telegram.callback.CallbackHandler;
@@ -31,7 +32,7 @@ public class MenuHandler implements CallbackHandler {
   public Screen welcome() {
     return Screen.title(
             t("🏋 Workout Tracker\n\nPlan your training.\nTrack every set.\nSee your progress."))
-        .button(t("Start"), "menu:onboard")
+        .primary(t("Start"), "menu:onboard")
         .button("Русский / English", "menu:language")
         .build();
   }
@@ -55,18 +56,18 @@ public class MenuHandler implements CallbackHandler {
                     + t(" exercises · ")
                     + week.sets()
                     + t(" sets"));
-    sessions
-        .active(c.uid())
-        .ifPresent(
-            s ->
-                b.line(t("\nActive: ") + s.name())
-                    .button(t("▶ Continue workout"), "session:view:" + s.id()));
+    var active = sessions.active(c.uid());
+    if (active.isPresent()) {
+      var session = active.get();
+      b.line(t("\nActive: ") + session.name())
+          .primary(t("▶ Continue workout"), "session:view:" + session.id());
+    } else b.primary(t("▶ Start workout"), "workout:list:0");
     if (c.data().name != null) b.button(t("Continue template draft"), "workout:draft");
-    return b.button(t("▶ Start workout"), "workout:list:0")
-        .button(t("☷ Workouts"), "workout:list:0")
-        .button(t("▥ Progress"), "progress:menu")
-        .button(t("◷ History"), "history:month:" + YearMonth.from(today) + ":0")
-        .button(t("⚙ Settings"), "menu:settings")
+    b.button(t("Training plan and goals"), "train:menu");
+    return b.row(b(t("☷ Workouts"), "workout:list:0"), b(t("▥ Progress"), "progress:menu"))
+        .row(
+            b(t("◷ History"), "history:month:" + YearMonth.from(today) + ":0"),
+            b(t("⚙ Settings"), "menu:settings"))
         .build();
   }
 
@@ -82,9 +83,10 @@ public class MenuHandler implements CallbackHandler {
                 + t("\nStarted ")
                 + Format.duration(Duration.between(s.startedAt(), clock.instant()).getSeconds())
                 + t(" ago."))
-        .button(t("▶ Continue workout"), "session:view:" + s.id())
-        .button(t("Finish workout"), "session:finishask:" + s.id())
-        .button(t("Cancel workout"), "session:cancelask:" + s.id())
+        .primary(t("▶ Continue workout"), "session:view:" + s.id())
+        .row(
+            b(t("✓ Finish"), "session:finishask:" + s.id()),
+            b(t("Cancel workout"), "session:cancelask:" + s.id()))
         .home()
         .build();
   }
@@ -96,11 +98,20 @@ public class MenuHandler implements CallbackHandler {
         yield home(c);
       }
       case "home" -> home(c);
+      case "welcome" -> welcome();
       case "settings" -> settings(c);
       case "language" ->
           Screen.title("Выберите язык / Choose language")
-              .button("Русский", "menu:setlanguage:ru")
-              .button("English", "menu:setlanguage:en")
+              .row(
+                  new Screen.Button(
+                      ("ru".equals(c.user().language) ? "✓ " : "") + "Русский",
+                      "menu:setlanguage:ru",
+                      "ru".equals(c.user().language) ? "primary" : null),
+                  new Screen.Button(
+                      ("en".equals(c.user().language) ? "✓ " : "") + "English",
+                      "menu:setlanguage:en",
+                      "en".equals(c.user().language) ? "primary" : null))
+              .button(t("← Back"), c.user().onboarded ? "menu:settings" : "menu:welcome")
               .build();
       case "setlanguage" -> {
         users.language(c.uid(), p[2]);
@@ -127,6 +138,7 @@ public class MenuHandler implements CallbackHandler {
                 + c.user().timezone
                 + t("\nUnits: kg · km\nLanguage: ")
                 + ("ru".equals(c.user().language) ? "Русский" : "English"))
+        .button(t("Training settings"), "train:settings")
         .button(t("Change timezone"), "menu:timezone")
         .button("Русский / English", "menu:language")
         .home()

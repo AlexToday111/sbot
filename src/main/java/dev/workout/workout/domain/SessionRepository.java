@@ -7,6 +7,8 @@ import org.springframework.data.jpa.repository.*;
 import org.springframework.data.repository.query.Param;
 
 public interface SessionRepository extends JpaRepository<WorkoutSession, Long> {
+  List<WorkoutSession> findAllByUserIdAndStatus(long userId, WorkoutSession.Status status);
+
   Optional<WorkoutSession> findByUserIdAndStatus(long userId, WorkoutSession.Status status);
 
   Optional<WorkoutSession> findByUserIdAndRequestKey(long userId, String requestKey);

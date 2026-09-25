@@ -26,7 +26,28 @@ public final class Format {
             : (s.weight() != null ? n(s.weight()) + t(" kg × ") : "")
                 + s.repetitions()
                 + t(" reps");
-    return result + (s.rpe() == null ? "" : " · RPE " + n(s.rpe()));
+    return (s.warmup() ? t("Warmup · ") : "")
+        + result
+        + (s.rpe() == null ? "" : " · RPE " + n(s.rpe()));
+  }
+
+  public static String targets(Target x) {
+    return (x.sets() == null ? "" : x.sets() + t(" sets"))
+        + (x.reps() == null ? "" : " × " + x.reps() + t(" reps"))
+        + (x.weight() == null ? "" : " @ " + n(x.weight()) + t(" kg"))
+        + (x.durationSeconds() == null ? "" : " · " + duration(x.durationSeconds()))
+        + (x.distance() == null ? "" : " · " + n(x.distance()) + t(" km"))
+        + (x.plan() == null || x.plan().isEmpty()
+            ? ""
+            : " · " + t("Individual sets: ") + x.plan().size());
+  }
+
+  public static String plan(SetPlan p) {
+    return (p.warmup() ? t("Warmup · ") : t("Working · "))
+        + (p.durationSeconds() != null
+            ? duration(p.durationSeconds())
+                + (p.distance() == null ? "" : " · " + n(p.distance()) + t(" km"))
+            : (p.weight() == null ? "" : n(p.weight()) + t(" kg × ")) + p.reps() + t(" reps"));
   }
 
   public static String summary(Summary s) {

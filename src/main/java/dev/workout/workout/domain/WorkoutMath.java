@@ -43,7 +43,13 @@ public final class WorkoutMath {
     return new Statistics(
         Math.max(
             0,
-            Duration.between(s.startedAt, s.finishedAt == null ? now : s.finishedAt).getSeconds()),
+            Duration.between(
+                        s.startedAt,
+                        s.finishedAt == null
+                            ? (s.pausedAt == null ? now : s.pausedAt)
+                            : s.finishedAt)
+                    .getSeconds()
+                - s.pausedSeconds),
         exercises,
         sets,
         reps,

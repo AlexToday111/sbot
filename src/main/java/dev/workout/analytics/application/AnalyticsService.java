@@ -69,17 +69,38 @@ public class AnalyticsService {
   }
 
   public Report report(long uid, String period) {
+    return report(uid, period, false, false);
+  }
+
+  public Report report(long uid, String period, boolean workingOnly, boolean equalElapsed) {
     ZoneId zone = ZoneId.of(users.get(uid).timezone);
     var w = Periods.of(period, LocalDate.now(clock.withZone(zone)));
-    Totals current = totals(uid, w.start(), w.end(), zone),
-        previous = totals(uid, w.previousStart(), w.previousEnd(), zone);
+    Instant currentEnd = w.end().atStartOfDay(zone).toInstant(),
+        previousEnd = w.previousEnd().atStartOfDay(zone).toInstant();
+    if (equalElapsed) {
+      var elapsed =
+          Duration.between(w.start().atStartOfDay(), LocalDateTime.now(clock.withZone(zone)));
+      var previousLocal = w.previousStart().atStartOfDay().plus(elapsed);
+      if (previousLocal.isAfter(w.previousEnd().atStartOfDay()))
+        previousLocal = w.previousEnd().atStartOfDay();
+      previousEnd = previousLocal.atZone(zone).toInstant();
+      // Both windows cover the same elapsed local time, clipped to the shorter period.
+      var common = Duration.between(w.previousStart().atStartOfDay(), previousLocal);
+      currentEnd = w.start().atStartOfDay().plus(common).atZone(zone).toInstant();
+    }
+    Totals
+        current =
+            totalsBetween(uid, w.start().atStartOfDay(zone).toInstant(), currentEnd, workingOnly),
+        previous =
+            totalsBetween(
+                uid, w.previousStart().atStartOfDay(zone).toInstant(), previousEnd, workingOnly);
     List<Day> days =
         jdbc.query(
             """
     select (s.started_at at time zone ?)::date as day, count(distinct s.id) as workouts,
       coalesce(sum(case when e.metric_type='STRENGTH' then x.weight*x.repetitions else 0 end),0) as volume
     from workout_sessions s left join workout_session_exercises e on e.workout_session_id=s.id
-    left join exercise_sets x on x.workout_session_exercise_id=e.id and not x.voided
+    left join exercise_sets x on x.workout_session_exercise_id=e.id and not x.voided and (not ? or not x.warmup)
     where s.user_id=? and s.status='COMPLETED' and s.started_at>=? and s.started_at<?
     group by day order by day
     """,
@@ -89,13 +110,14 @@ public class AnalyticsService {
                     rs.getLong("workouts"),
                     rs.getBigDecimal("volume")),
             zone.getId(),
+            workingOnly,
             uid,
             ts(w.start(), zone),
-            ts(w.end(), zone));
+            Timestamp.from(currentEnd));
     return new Report(
         period,
         w.start(),
-        w.end(),
+        equalElapsed ? currentEnd.atZone(zone).toLocalDate().plusDays(1) : w.end(),
         current,
         previous,
         current.workouts - previous.workouts,
@@ -104,19 +126,25 @@ public class AnalyticsService {
   }
 
   public Totals totals(long uid, LocalDate start, LocalDate end, ZoneId zone) {
+    return totalsBetween(
+        uid, start.atStartOfDay(zone).toInstant(), end.atStartOfDay(zone).toInstant(), false);
+  }
+
+  public Totals totalsBetween(long uid, Instant start, Instant end, boolean workingOnly) {
+    users.get(uid);
     // Aggregate time separately: joining to sets must never multiply session duration.
     var base =
         jdbc.queryForMap(
-            "select count(*) as workouts, coalesce(sum(extract(epoch from (finished_at-started_at))),0) as seconds from workout_sessions where user_id=? and status='COMPLETED' and started_at>=? and started_at<?",
+            "select count(*) as workouts, coalesce(sum(greatest(0,extract(epoch from (finished_at-started_at))-paused_seconds)),0) as seconds from workout_sessions where user_id=? and status='COMPLETED' and started_at>=? and started_at<?",
             uid,
-            ts(start, zone),
-            ts(end, zone));
+            Timestamp.from(start),
+            Timestamp.from(end));
     return jdbc.queryForObject(
         """
     select count(distinct e.id) as exercises,count(x.id) as sets,coalesce(sum(x.repetitions),0) as reps,
     coalesce(sum(case when e.metric_type='STRENGTH' then x.weight*x.repetitions else 0 end),0) as volume
     from workout_sessions s join workout_session_exercises e on e.workout_session_id=s.id
-    join exercise_sets x on x.workout_session_exercise_id=e.id and not x.voided
+    join exercise_sets x on x.workout_session_exercise_id=e.id and not x.voided and (not ? or not x.warmup)
     where s.user_id=? and s.status='COMPLETED' and s.started_at>=? and s.started_at<?
     """,
         (rs, n) ->
@@ -127,12 +155,18 @@ public class AnalyticsService {
                 rs.getLong("reps"),
                 ((Number) base.get("seconds")).longValue(),
                 rs.getBigDecimal("volume")),
+        workingOnly,
         uid,
-        ts(start, zone),
-        ts(end, zone));
+        Timestamp.from(start),
+        Timestamp.from(end));
   }
 
   public Progress progress(long uid, long eid, String period) {
+    return progress(uid, eid, period, false, false);
+  }
+
+  public Progress progress(
+      long uid, long eid, String period, boolean workingOnly, boolean bySession) {
     Exercise exercise = exercises.get(uid, eid);
     ZoneId zone = ZoneId.of(users.get(uid).timezone);
     var w = Periods.of(period, LocalDate.now(clock.withZone(zone)));
@@ -144,21 +178,28 @@ public class AnalyticsService {
           case CARDIO -> "x.distance";
           case TIMED -> "x.duration_seconds";
         };
+    String bucket =
+        bySession
+            ? "to_char(s.started_at at time zone ?,'YYYY-MM-DD HH24:MI')"
+            : "to_char(s.started_at at time zone ?,'YYYY-MM')";
+    String grouping = bySession ? "s.id,s.started_at" : "month";
+    String ordering = bySession ? "s.started_at,s.id" : "month";
     List<Point> points =
         jdbc.query(
-            """
-    select to_char(s.started_at at time zone ?,'YYYY-MM') as month, max(%s) as value
-    from workout_sessions s join workout_session_exercises e on e.workout_session_id=s.id
-    join exercise_sets x on x.workout_session_exercise_id=e.id and not x.voided
-    where s.user_id=? and e.exercise_id=? and s.status='COMPLETED' and s.started_at>=? and s.started_at<?
-    group by month order by month
-    """
-                .formatted(expression),
+            "select "
+                + bucket
+                + " as month,max("
+                + expression
+                + ") as value from workout_sessions s join workout_session_exercises e on e.workout_session_id=s.id join exercise_sets x on x.workout_session_exercise_id=e.id and not x.voided and (not ? or not x.warmup) where s.user_id=? and e.exercise_id=? and s.status='COMPLETED' and s.started_at>=? and s.started_at<? group by "
+                + grouping
+                + " order by "
+                + ordering,
             (rs, n) ->
                 new Point(
                     rs.getString("month"),
                     rs.getBigDecimal("value").setScale(2, RoundingMode.HALF_UP)),
             zone.getId(),
+            workingOnly,
             uid,
             eid,
             ts(w.start(), zone),

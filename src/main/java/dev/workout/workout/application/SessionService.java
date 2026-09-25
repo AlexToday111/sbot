@@ -57,6 +57,9 @@ public class SessionService {
       e.targetReps = item.targetReps();
       e.targetWeight = item.targetWeight();
       e.restSeconds = item.restSeconds();
+      e.targetDuration = item.targetDuration();
+      e.targetDistance = item.targetDistance();
+      e.setPlan = Plans.write(item.plan());
       s.exercises.add(e);
     }
     return view(sessions.saveAndFlush(s));
@@ -92,6 +95,9 @@ public class SessionService {
       e.targetReps = old.targetReps;
       e.targetWeight = old.targetWeight;
       e.restSeconds = old.restSeconds;
+      e.targetDuration = old.targetDuration;
+      e.targetDistance = old.targetDistance;
+      e.setPlan = old.setPlan;
       s.exercises.add(e);
     }
     return view(sessions.saveAndFlush(s));
@@ -110,7 +116,9 @@ public class SessionService {
         return view(s); // An undone set stays undone on replay.
       }
     active(s);
+    if (s.pausedAt != null) throw new DomainException("Resume the workout before recording a set.");
     SetValidation.validate(e.metricType, input);
+    e.skipped = false;
     if (e.recordedSets().size() >= 100) throw new DomainException("Maximum 100 sets per exercise.");
     ExerciseSet set = new ExerciseSet();
     set.setNumber = e.sets.stream().mapToInt(x -> x.setNumber).max().orElse(0) + 1;
@@ -120,6 +128,7 @@ public class SessionService {
     set.distance = input.distance();
     set.rpe = input.rpe();
     set.notes = input.notes();
+    set.warmup = input.warmup();
     set.requestKey = key;
     set.createdAt = clock.instant();
     e.sets.add(set);
@@ -130,7 +139,8 @@ public class SessionService {
   public SessionView undo(long uid, long sid, long setId) {
     users.lock(uid);
     WorkoutSession s = owned(uid, sid);
-    active(s);
+    if (s.status == WorkoutSession.Status.CANCELLED)
+      throw new DomainException("Cancelled workouts cannot be edited.");
     ExerciseSet set =
         s.exercises.stream()
             .flatMap(e -> e.sets.stream())
@@ -138,6 +148,11 @@ public class SessionService {
             .findFirst()
             .orElseThrow(DomainException::missing);
     set.voided = true;
+    boolean completed = s.status == WorkoutSession.Status.COMPLETED;
+    if (completed && s.exercises.stream().allMatch(e -> e.recordedSets().isEmpty()))
+      s.status = WorkoutSession.Status.CANCELLED;
+    sessions.flush();
+    if (completed) records.rebuild(s.userId);
     return view(s);
   }
 
@@ -156,6 +171,16 @@ public class SessionService {
     WorkoutSession s = owned(uid, sid);
     if (s.status == WorkoutSession.Status.COMPLETED) return view(s);
     active(s);
+    if (s.exercises.stream().allMatch(e -> e.recordedSets().isEmpty()))
+      throw new DomainException("No sets recorded. Cancel this empty workout instead.");
+    if (java.time.Duration.between(s.startedAt, clock.instant()).toHours() >= 12)
+      throw new DomainException(
+          "This workout has been open for 12 hours. Specify the actual finish time.");
+    if (s.pausedAt != null) {
+      s.pausedSeconds += java.time.Duration.between(s.pausedAt, clock.instant()).getSeconds();
+      s.pausedAt = null;
+    }
+    s.restUntil = null;
     s.status = WorkoutSession.Status.COMPLETED;
     s.finishedAt = clock.instant();
     records.onCompleted(s);
@@ -167,6 +192,8 @@ public class SessionService {
     WorkoutSession s = owned(uid, sid);
     if (s.status == WorkoutSession.Status.CANCELLED) return view(s);
     active(s);
+    s.restUntil = null;
+    s.pausedAt = null;
     s.status = WorkoutSession.Status.CANCELLED;
     s.finishedAt = clock.instant();
     return view(s);
@@ -240,7 +267,8 @@ public class SessionService {
   }
 
   private boolean same(ExerciseSet s, SetInput i) {
-    return eq(s.weight, i.weight())
+    return s.warmup == i.warmup()
+        && eq(s.weight, i.weight())
         && Objects.equals(s.repetitions, i.repetitions())
         && Objects.equals(s.durationSeconds, i.durationSeconds())
         && eq(s.distance, i.distance())

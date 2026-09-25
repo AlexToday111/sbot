@@ -134,17 +134,22 @@ public class UpdateProcessor {
     } else {
       String text = message.path("text").asText("");
       if (message.has("document") && user.onboarded) {
-        if (state.flow != Flow.CSV_IMPORT)
-          throw new DomainException(t("Choose Workouts → Import CSV before sending a file."));
-        var draft = imports.draft(c.uid(), telegram.downloadCsv(message.path("document")));
-        data.templateId = null;
-        data.name = draft.name();
-        data.description = draft.description();
-        data.targets.clear();
-        data.targets.addAll(draft.exercises());
-        screen = router.route(c, "workout:draft");
+        if (state.flow == Flow.HISTORY_IMPORT) {
+          data.historyCsv =
+              Base64.getEncoder().encodeToString(telegram.downloadCsv(message.path("document")));
+          screen = router.route(c, "train:historypreview");
+        } else {
+          if (state.flow != Flow.CSV_IMPORT)
+            throw new DomainException(t("Choose Workouts → Import CSV before sending a file."));
+          data.csvDraft = imports.preview(c.uid(), telegram.downloadCsv(message.path("document")));
+          data.importReplaceId = null;
+          screen = router.route(c, "train:importpreview");
+        }
       } else if (text.startsWith("/")) {
         String command = text.split("\\s+")[0].split("@")[0];
+        // A command must visibly answer at the bottom of the chat, including after a restart.
+        // Callback navigation keeps editing the current interface message.
+        state.messageId = null;
         screen =
             switch (command) {
               case "/start" -> menu.start(c);
@@ -167,7 +172,8 @@ public class UpdateProcessor {
                       .home()
                       .build();
             };
-      } else if (user.onboarded && state.flow == Flow.CSV_IMPORT) {
+      } else if (user.onboarded
+          && (state.flow == Flow.CSV_IMPORT || state.flow == Flow.HISTORY_IMPORT)) {
         throw new DomainException(t("Send a .csv file as a document."));
       } else screen = !user.onboarded ? menu.welcome() : router.text(c, text);
     }

@@ -2,6 +2,9 @@ package dev.workout.telegram.handler;
 
 public enum Flow {
   HOME,
+  TRAIN_INPUT,
+  HISTORY_IMPORT,
+  SET_PLAN,
   CSV_IMPORT,
   WORKOUT_NAME,
   WORKOUT_DESCRIPTION,

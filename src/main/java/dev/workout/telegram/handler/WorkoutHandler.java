@@ -33,7 +33,7 @@ public class WorkoutHandler implements CallbackHandler {
         c.flow(Flow.CSV_IMPORT);
         yield Screen.title(
                 t(
-                    "Send a UTF-8 .csv document (up to 64 KiB).\nColumns: workout,exercise,metric_type,sets,reps,weight,rest_seconds\nOne row per exercise, 1–30 exercises. The workout name must be the same in every row.\n\nThe file replaces your current draft. Review it and tap Save workout. /cancel cancels input."))
+                    "Send a UTF-8 .csv document (up to 64 KiB).\nColumns: workout,exercise,metric_type,sets,reps,weight,rest_seconds\nOne row per exercise, 1–30 exercises. The workout name must be the same in every row.\n\nReview the file, then choose a new copy or replacement. Nothing is created before confirmation. /cancel cancels input."))
             .button(t("← Workouts"), "workout:list:0")
             .home()
             .build();
@@ -53,18 +53,7 @@ public class WorkoutHandler implements CallbackHandler {
         c.data().name = t.name();
         c.data().description = t.description();
         c.data().targets.clear();
-        t.exercises()
-            .forEach(
-                e ->
-                    c.data()
-                        .targets
-                        .add(
-                            new Target(
-                                e.exerciseId(),
-                                e.targetSets(),
-                                e.targetReps(),
-                                e.targetWeight(),
-                                e.restSeconds())));
+        t.exercises().forEach(e -> c.data().targets.add(Plans.target(e)));
         yield draft(c);
       }
       case "name" -> name(c);
@@ -90,7 +79,7 @@ public class WorkoutHandler implements CallbackHandler {
       case "deleteask" ->
           Screen.title(
                   t("Delete this workout template?\n\nCompleted and active workouts will be kept."))
-              .button(t("Delete template"), "workout:delete:" + p[2])
+              .danger(t("Delete template"), "workout:delete:" + p[2])
               .button(t("← Back"), "workout:view:" + p[2])
               .home()
               .build();
@@ -124,12 +113,30 @@ public class WorkoutHandler implements CallbackHandler {
         if (i > 0) Collections.swap(c.data().targets, i, i - 1);
         yield draft(c);
       }
+      case "item" -> item(c, Integer.parseInt(p[2]));
+      case "down" -> {
+        int i = Integer.parseInt(p[2]);
+        if (i + 1 < c.data().targets.size()) Collections.swap(c.data().targets, i, i + 1);
+        yield draft(c);
+      }
+      case "setplan" -> {
+        c.data().targetPosition = Integer.parseInt(p[2]);
+        var target = c.data().targets.get(c.data().targetPosition);
+        var type = exercises.get(c.uid(), target.exerciseId()).metricType;
+        c.flow(Flow.SET_PLAN);
+        yield Screen.title(
+                t(
+                        "Individual set plan\nOne set per line. Prefix w for warmup, r for working. Enter - to clear.\n\n")
+                    + SetEntry.help(type))
+            .navigation("workout:item:" + p[2])
+            .build();
+      }
       case "target" -> {
         c.data().targetPosition = Integer.parseInt(p[2]);
         c.flow(Flow.TARGETS);
         yield Screen.title(
                 t(
-                    "Optional targets\n\nEnter: sets reps weight rest_seconds\nExample: 4 8 70 90\nUse - for any value you want to leave empty.\nExample: 3 12 - 60\n\nWeight is kg. Rest is a reference, not a timer."))
+                    "Optional targets\n\nStrength/bodyweight: sets reps weight rest_seconds\nTimed: sets duration_seconds rest_seconds\nCardio: sets duration_seconds distance_km rest_seconds\nUse - to leave a value empty. Rest starts a timer after saving a set."))
             .button(t("Clear targets"), "workout:cleartarget")
             .button(t("← Workout"), "workout:draft")
             .home()
@@ -172,11 +179,9 @@ public class WorkoutHandler implements CallbackHandler {
             screen.button(
                 t.name() + " · " + t.exercises().size() + t(" exercises"),
                 "workout:view:" + t.id()));
-    if (page > 0) screen.button(t("← Previous"), "workout:list:" + (page - 1));
-    if (items.size() == 8) screen.button(t("Next →"), "workout:list:" + (page + 1));
     return screen
-        .button(t("+ Create workout"), "workout:new")
-        .button(t("Import CSV"), "workout:import")
+        .pages(page, items.size() == 8, "workout:list:")
+        .row(b(t("+ Create"), "workout:new"), b(t("Import CSV"), "workout:import"))
         .home()
         .build();
   }
@@ -191,13 +196,13 @@ public class WorkoutHandler implements CallbackHandler {
           (e.position() + 1)
               + ". "
               + (e.name().length() > 45 ? e.name().substring(0, 42) + "…" : e.name())
-              + targets(e.targetSets(), e.targetReps(), e.targetWeight(), e.restSeconds()));
+              + " · "
+              + Format.targets(Plans.target(e)));
     return screen
-        .button(t("▶ Start"), "session:start:" + t.id())
-        .button(t("Edit"), "workout:edit:" + t.id())
-        .button(t("Delete"), "workout:deleteask:" + t.id())
-        .button(t("← Workouts"), "workout:list:0")
-        .home()
+        .primary(t("▶ Start"), "session:start:" + t.id())
+        .button(t("Suggest next plan"), "train:suggest:" + t.id())
+        .row(b(t("Edit"), "workout:edit:" + t.id()), b(t("Delete"), "workout:deleteask:" + t.id()))
+        .navigation("workout:list:0")
         .build();
   }
 
@@ -219,20 +224,46 @@ public class WorkoutHandler implements CallbackHandler {
       var t = c.data().targets.get(i);
       String name = exercises.get(c.uid(), t.exerciseId()).name;
       screen.line((i + 1) + ". " + name);
-      if (i > 0)
-        screen.row(
-            b("↑ " + (i + 1), "workout:up:" + i),
-            b(t("Targets ") + (i + 1), "workout:target:" + i),
-            b(t("Remove ") + (i + 1), "workout:remove:" + i));
-      else screen.row(b(t("Targets 1"), "workout:target:0"), b(t("Remove 1"), "workout:remove:0"));
+      screen.button(
+          (i + 1) + ". " + (name.length() > 36 ? name.substring(0, 33) + "…" : name) + " ›",
+          "workout:item:" + i);
     }
     if (c.data().targets.isEmpty()) screen.line(t("No exercises yet."));
     return screen
         .button(t("+ Add exercise"), "workout:all")
-        .button(t("Rename"), "workout:name")
-        .button(t("Description"), "workout:description")
-        .button(t("✓ Save workout"), "workout:save")
+        .row(b(t("Rename"), "workout:name"), b(t("Description"), "workout:description"))
+        .success(t("✓ Save workout"), "workout:save")
         .home()
+        .build();
+  }
+
+  private Screen item(Interaction c, int index) {
+    c.flow(Flow.WORKOUT_EDIT);
+    var target = c.data().targets.get(index);
+    var exercise = exercises.get(c.uid(), target.exerciseId());
+    return Screen.title((index + 1) + ". " + exercise.name)
+        .line(targets(target.sets(), target.reps(), target.weight(), target.restSeconds()))
+        .line(
+            target.durationSeconds() == null
+                ? ""
+                : t("Duration target: ") + Format.duration(target.durationSeconds()))
+        .line(
+            target.distance() == null
+                ? ""
+                : t("Distance target: ") + Format.n(target.distance()) + t(" km"))
+        .line(
+            target.plan() == null || target.plan().isEmpty()
+                ? ""
+                : t("Individual sets: ") + target.plan().size())
+        .primary(t("Edit targets"), "workout:target:" + index)
+        .button(t("Individual set plan"), "workout:setplan:" + index)
+        .row(
+            index > 0 ? b(t("↑ Move up"), "workout:up:" + index) : null,
+            index + 1 < c.data().targets.size()
+                ? b(t("↓ Move down"), "workout:down:" + index)
+                : null)
+        .button(t("Remove exercise"), "workout:remove:" + index)
+        .navigation("workout:draft")
         .build();
   }
 
@@ -249,13 +280,10 @@ public class WorkoutHandler implements CallbackHandler {
                 e.name + " · " + t(e.metricType.name().toLowerCase(java.util.Locale.ROOT)),
                 "workout:add:" + e.id));
     if (list.isEmpty()) screen.line(t("No matching exercises."));
-    if (page > 0) screen.button(t("← Previous"), "workout:pick:" + (page - 1));
-    if (list.size() == 8) screen.button(t("Next →"), "workout:pick:" + (page + 1));
     return screen
-        .button(t("Search"), "workout:search")
-        .button(t("+ Custom exercise"), "workout:custom")
-        .button(t("← Workout"), "workout:draft")
-        .home()
+        .pages(page, list.size() == 8, "workout:pick:")
+        .row(b(t("Search"), "workout:search"), b(t("+ Custom exercise"), "workout:custom"))
+        .navigation("workout:draft")
         .build();
   }
 
@@ -272,7 +300,8 @@ public class WorkoutHandler implements CallbackHandler {
             Flow.WORKOUT_DESCRIPTION,
             Flow.EXERCISE_SEARCH,
             Flow.CUSTOM_NAME,
-            Flow.TARGETS)
+            Flow.TARGETS,
+            Flow.SET_PLAN)
         .contains(f);
   }
 
@@ -302,22 +331,57 @@ public class WorkoutHandler implements CallbackHandler {
             .home()
             .build();
       }
+      case SET_PLAN -> {
+        int i = c.data().targetPosition;
+        var old = c.data().targets.get(i);
+        var type = exercises.get(c.uid(), old.exerciseId()).metricType;
+        var plan = new ArrayList<SetPlan>();
+        if (!text.strip().equals("-"))
+          for (String line : text.lines().filter(v -> !v.isBlank()).toList()) {
+            var v = SetEntry.parse(type, 0, line, false);
+            plan.add(
+                new SetPlan(
+                    v.repetitions(), v.weight(), v.durationSeconds(), v.distance(), v.warmup()));
+          }
+        var target =
+            new Target(
+                old.exerciseId(),
+                old.sets(),
+                old.reps(),
+                old.weight(),
+                old.restSeconds(),
+                old.durationSeconds(),
+                old.distance(),
+                plan);
+        Plans.validate(type, target);
+        c.data().targets.set(i, target);
+        yield item(c, i);
+      }
       case TARGETS -> {
-        String[] v = text.trim().split("\\s+");
-        if (v.length != 4)
-          throw new DomainException(
-              t("Enter four values: sets reps weight rest_seconds. Use - to skip."));
-        Integer sets = integer(v[0]), reps = integer(v[1]), rest = integer(v[3]);
-        var weight = v[2].equals("-") ? null : Checks.decimal(v[2]);
+        String[] v = text.strip().split("\s+");
+        int i = c.data().targetPosition;
+        var old = c.data().targets.get(i);
+        var type = exercises.get(c.uid(), old.exerciseId()).metricType;
+        if (v.length != (type == MetricType.TIMED ? 3 : 4))
+          throw new DomainException("Check the target format shown above.");
+        Integer sets = integer(v[0]), reps = null, duration = null, rest = integer(v[v.length - 1]);
+        java.math.BigDecimal weight = null, distance = null;
+        if (type == MetricType.TIMED || type == MetricType.CARDIO) {
+          duration = integer(v[1]);
+          if (type == MetricType.CARDIO) distance = v[2].equals("-") ? null : Checks.decimal(v[2]);
+        } else {
+          reps = integer(v[1]);
+          weight = v[2].equals("-") ? null : Checks.decimal(v[2]);
+        }
         Checks.range(sets, 1, 100, t("Sets"));
         Checks.range(reps, 0, 1000, t("Repetitions"));
         Checks.range(weight, 0, 2000, t("Weight"));
         Checks.range(rest, 0, 3600, t("Rest"));
         Checks.scale(weight, 3, t("Weight"));
-        int i = c.data().targetPosition;
-        c.data()
-            .targets
-            .set(i, new Target(c.data().targets.get(i).exerciseId(), sets, reps, weight, rest));
+        var target =
+            new Target(old.exerciseId(), sets, reps, weight, rest, duration, distance, old.plan());
+        Plans.validate(type, target);
+        c.data().targets.set(i, target);
         yield draft(c);
       }
       default -> throw new DomainException(t("Use the workout buttons."));

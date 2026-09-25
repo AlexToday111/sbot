@@ -14,8 +14,10 @@ import org.springframework.transaction.annotation.Transactional;
 public class RecordService {
   private final RecordRepository records;
   private final Clock clock;
+  private final SessionRepository sessions;
 
-  public RecordService(RecordRepository r, Clock c) {
+  public RecordService(RecordRepository r, Clock c, SessionRepository sessions) {
+    this.sessions = sessions;
     records = r;
     clock = c;
   }
@@ -30,7 +32,7 @@ public class RecordService {
             e ->
                 grouped
                     .computeIfAbsent(e.exerciseId, k -> new ArrayList<>())
-                    .addAll(e.recordedSets()));
+                    .addAll(e.recordedSets().stream().filter(s -> !s.warmup).toList()));
     grouped.forEach(
         (eid, sets) -> {
           if (sets.isEmpty()) return;
@@ -51,6 +53,15 @@ public class RecordService {
           r.updatedAt = clock.instant();
           records.save(r);
         });
+  }
+
+  public void rebuild(long uid) {
+    sessions.flush();
+    records.deleteByUserId(uid);
+    records.flush();
+    sessions
+        .findAllByUserIdAndStatus(uid, WorkoutSession.Status.COMPLETED)
+        .forEach(this::onCompleted);
   }
 
   @Transactional(readOnly = true)

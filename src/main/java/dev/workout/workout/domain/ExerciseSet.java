@@ -31,4 +31,5 @@ public class ExerciseSet {
   public String requestKey;
 
   public boolean voided;
+  public boolean warmup;
 }
